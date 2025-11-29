@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель - Вход</title>
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-card">
+      <h1>🔐 Админ-панель</h1>
+      <p class="subtitle">Войдите для управления магазином</p>
+      
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="username">Логин</label>
+          <input type="text" id="username" name="username" required autocomplete="username">
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Пароль</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password">
+        </div>
+        
+        <button type="submit" class="btn-primary">Войти</button>
+        
+        <div id="error" class="error" style="display: none;"></div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById('loginForm');
+    const errorDiv = document.getElementById('error');
+
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      
+      try {
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          localStorage.setItem('admin_logged_in', 'true');
+          localStorage.setItem('admin_username', data.username);
+          window.location.href = '/admin/dashboard.html';
+        } else {
+          errorDiv.textContent = data.error || 'Неверный логин или пароль';
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Ошибка подключения к серверу';
+        errorDiv.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

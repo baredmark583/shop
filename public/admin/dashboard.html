@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - Управление</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+</head>
+
+<body>
+    <div class="dashboard">
+        <header>
+            <h1>🛍️ Управление магазином</h1>
+            <div class="header-actions">
+                <span id="adminUsername"></span>
+                <button onclick="logout()" class="btn-secondary">Выйти</button>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" onclick="showTab('products')">📦 Товары</button>
+            <button class="tab" onclick="showTab('orders')">🧾 Заказы</button>
+        </nav>
+
+        <!-- Products Tab -->
+        <div id="productsTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Товары</h2>
+                <button onclick="showAddProduct()" class="btn-primary">+ Добавить товар</button>
+            </div>
+
+            <div id="productsList" class="products-grid"></div>
+
+            <!-- Add/Edit Product Form -->
+            <div id="productForm" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h3 id="formTitle">Добавить товар</h3>
+                    <form id="productDataForm">
+                        <input type="hidden" id="productId">
+
+                        <div class="form-group">
+                            <label for="productName">Название</label>
+                            <input type="text" id="productName" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productDescription">Описание</label>
+                            <textarea id="productDescription" rows="3"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productPrice">Цена (грн)</label>
+                            <input type="number" id="productPrice" step="0.01" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="productImage">Изображение</label>
+                            <input type="file" id="productImage" accept="image/*">
+                            <img id="imagePreview" style="display: none; max-width: 200px; margin-top: 10px;">
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Сохранить</button>
+                            <button type="button" onclick="hideProductForm()" class="btn-secondary">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Tab -->
+        <div id="ordersTab" class="tab-content" style="display: none;">
+            <div class="section-header">
+                <h2>Заказы</h2>
+            </div>
+
+            <div id="ordersList" class="orders-list"></div>
+        </div>
+    </div>
+
+    <script src="/admin/admin.js"></script>
+</body>
+
+</html>
