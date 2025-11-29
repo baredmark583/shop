@@ -2,9 +2,6 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// Apply Telegram theme immediately
-applyTelegramTheme();
-
 // Get user platform from Telegram
 const platform = tg.platform || 'unknown';
 const userId = tg.initDataUnsafe?.user?.id;
@@ -60,7 +57,11 @@ async function init() {
     root.style.setProperty('--card-bg', tg.themeParams.secondary_bg_color || '#FFFFFF');
     root.style.setProperty('--text-primary', tg.themeParams.text_color || '#1D1D1F');
     root.style.setProperty('--text-secondary', tg.themeParams.hint_color || '#86868B');
-}
+
+    // Load initial data
+    await loadBanners();
+    await loadProducts();
+    updateCartCount();
 }
 
 // Helper to darken/lighten color
