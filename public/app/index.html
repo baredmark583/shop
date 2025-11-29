@@ -7,26 +7,24 @@
     <title>Магазин</title>
     <link rel="stylesheet" href="/app/style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
 </head>
 
 <body>
     <div class="app">
-        <header>
-            <h1>🛍️ Наш Магазин</h1>
-            <button id="cartBtn" class="cart-btn" onclick="showCart()">
-                🛒 <span id="cartCount">0</span>
-            </button>
-        </header>
+        <!-- Banners Section -->
+        <div id="bannersSlider" class="banners-slider"></div>
 
+        <!-- Products Section -->
         <div id="mainView" class="view">
             <div id="productsList" class="products-grid">
                 <!-- Products will be loaded here -->
             </div>
         </div>
 
+        <!-- Cart View -->
         <div id="cartView" class="view" style="display: none;">
-            <div class="cart-header">
-                <button onclick="showMain()" class="back-btn">← Назад</button>
+            <div class="view-header">
                 <h2>Корзина</h2>
             </div>
 
@@ -36,7 +34,7 @@
 
             <div id="cartEmpty"
                 style="display: none; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
-                <div style="font-size: 64px; margin-bottom: 20px;">🛒</div>
+                <iconify-icon icon="mdi:cart-outline" style="font-size: 64px; margin-bottom: 20px;"></iconify-icon>
                 <p>Корзина пуста</p>
             </div>
 
@@ -53,6 +51,62 @@
                 </button>
             </div>
         </div>
+
+        <!-- Profile View -->
+        <div id="profileView" class="view" style="display: none;">
+            <div class="view-header">
+                <h2>Профиль</h2>
+            </div>
+            <div class="profile-content">
+                <div class="profile-info">
+                    <iconify-icon icon="mdi:account-circle"
+                        style="font-size: 80px; color: var(--primary);"></iconify-icon>
+                    <h3 id="userName">Пользователь</h3>
+                    <p id="userId" style="color: var(--text-secondary);"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail Modal -->
+        <div id="productModal" class="modal" style="display: none;">
+            <div class="modal-overlay" onclick="closeProductModal()"></div>
+            <div class="modal-product-content">
+                <button class="modal-close" onclick="closeProductModal()">
+                    <iconify-icon icon="mdi:close"></iconify-icon>
+                </button>
+                <img id="modalProductImage" class="modal-product-image" alt="">
+                <div class="modal-product-info">
+                    <h2 id="modalProductName"></h2>
+                    <p id="modalProductDescription"></p>
+                    <div class="modal-product-footer">
+                        <div>
+                            <div id="modalProductPrice" class="product-price"></div>
+                            <div id="modalProductStars" class="product-stars"></div>
+                        </div>
+                        <button id="modalAddToCart" class="btn-add-cart" onclick="addToCartFromModal()">
+                            <iconify-icon icon="mdi:cart-plus"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="showView('main')" data-view="main">
+                <iconify-icon icon="mdi:home"></iconify-icon>
+                <span>Главная</span>
+            </button>
+            <button class="nav-item" onclick="showView('cart')" data-view="cart">
+                <iconify-icon icon="mdi:cart"></iconify-icon>
+                <span>Корзина</span>
+                <div id="navCartBadge" class="nav-badge" style="display: none;">0</div>
+            </button>
+            <button class="nav-item" onclick="showView('profile')" data-view="profile">
+                <iconify-icon icon="mdi:account"></iconify-icon>
+                <span>Профиль</span>
+            </button>
+        </nav>
 
         <!-- Loading spinner -->
         <div id="loading" class="loading" style="display: none;">

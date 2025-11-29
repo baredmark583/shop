@@ -20,6 +20,7 @@
 
         <nav class="tabs">
             <button class="tab active" onclick="showTab('products')">📦 Товары</button>
+            <button class="tab" onclick="showTab('banners')">🖼️ Баннеры</button>
             <button class="tab" onclick="showTab('orders')">🧾 Заказы</button>
         </nav>
 
@@ -63,6 +64,47 @@
                         <div class="form-actions">
                             <button type="submit" class="btn-primary">Сохранить</button>
                             <button type="button" onclick="hideProductForm()" class="btn-secondary">Отмена</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Banners Tab -->
+        <div id="bannersTab" class="tab-content" style="display: none;">
+            <div class="section-header">
+                <h2>Баннеры</h2>
+                <button onclick="showAddBanner()" class="btn-primary">+ Добавить баннер</button>
+            </div>
+
+            <div id="bannersList" class="banners-list"></div>
+
+            <!-- Add/Edit Banner Form -->
+            <div id="bannerForm" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <h3 id="bannerFormTitle">Добавить баннер</h3>
+                    <form id="bannerDataForm">
+                        <input type="hidden" id="bannerId">
+
+                        <div class="form-group">
+                            <label for="bannerImage">Изображение</label>
+                            <input type="file" id="bannerImage" accept="image/*" required>
+                            <img id="bannerImagePreview" style="display: none; max-width: 100%; margin-top: 10px;">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bannerLink">Ссылка (опционально)</label>
+                            <input type="text" id="bannerLink" placeholder="https://...">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="bannerSort">Порядок сортировки</label>
+                            <input type="number" id="bannerSort" value="0">
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">Сохранить</button>
+                            <button type="button" onclick="hideBannerForm()" class="btn-secondary">Отмена</button>
                         </div>
                     </form>
                 </div>

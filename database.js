@@ -9,10 +9,10 @@ const pool = new Pool({
 // Initialize database tables
 async function initDatabase() {
   const client = await pool.connect();
-  
+
   try {
     await client.query('BEGIN');
-    
+
     // Admin users table
     await client.query(`
       CREATE TABLE IF NOT EXISTS admin_users (
@@ -22,7 +22,7 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Products table
     await client.query(`
       CREATE TABLE IF NOT EXISTS products (
@@ -31,12 +31,25 @@ async function initDatabase() {
         description TEXT,
         price_uah DECIMAL(10, 2) NOT NULL,
         image_url VARCHAR(500),
+        images TEXT[], -- Multiple images support
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
+    // Banners table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS banners (
+        id SERIAL PRIMARY KEY,
+        image_url VARCHAR(500) NOT NULL,
+        link_url VARCHAR(500),
+        is_active BOOLEAN DEFAULT true,
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Orders table
     await client.query(`
       CREATE TABLE IF NOT EXISTS orders (
@@ -51,7 +64,7 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     // Order items table
     await client.query(`
       CREATE TABLE IF NOT EXISTS order_items (
@@ -64,7 +77,7 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-    
+
     await client.query('COMMIT');
     console.log('✅ Database initialized successfully');
   } catch (error) {
@@ -85,13 +98,13 @@ const db = {
     );
     return result.rows;
   },
-  
+
   // Get product by ID
   async getProduct(id) {
     const result = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
     return result.rows[0];
   },
-  
+
   // Create product
   async createProduct(name, description, price_uah, image_url) {
     const result = await pool.query(
@@ -100,7 +113,7 @@ const db = {
     );
     return result.rows[0];
   },
-  
+
   // Update product
   async updateProduct(id, name, description, price_uah, image_url) {
     const result = await pool.query(
@@ -109,25 +122,25 @@ const db = {
     );
     return result.rows[0];
   },
-  
+
   // Delete product (soft delete)
   async deleteProduct(id) {
     await pool.query('UPDATE products SET is_active = false WHERE id = $1', [id]);
   },
-  
+
   // Create order
   async createOrder(telegram_user_id, telegram_username, total_uah, total_stars, platform, items) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
-      
+
       // Create order
       const orderResult = await client.query(
         'INSERT INTO orders (telegram_user_id, telegram_username, total_uah, total_stars, platform) VALUES ($1, $2, $3, $4, $5) RETURNING *',
         [telegram_user_id, telegram_username, total_uah, total_stars, platform]
       );
       const order = orderResult.rows[0];
-      
+
       // Create order items
       for (const item of items) {
         await client.query(
@@ -135,7 +148,7 @@ const db = {
           [order.id, item.product_id, item.name, item.quantity, item.price]
         );
       }
-      
+
       await client.query('COMMIT');
       return order;
     } catch (error) {
@@ -145,7 +158,7 @@ const db = {
       client.release();
     }
   },
-  
+
   // Update order status
   async updateOrderStatus(orderId, status, paymentId) {
     await pool.query(
@@ -153,7 +166,7 @@ const db = {
       [status, paymentId, orderId]
     );
   },
-  
+
   // Get all orders
   async getAllOrders() {
     const result = await pool.query(
@@ -161,32 +174,60 @@ const db = {
     );
     return result.rows;
   },
-  
+
   // Get order with items
   async getOrderWithItems(orderId) {
     const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
     const itemsResult = await pool.query('SELECT * FROM order_items WHERE order_id = $1', [orderId]);
-    
+
     if (orderResult.rows.length === 0) return null;
-    
+
     return {
       ...orderResult.rows[0],
       items: itemsResult.rows
     };
   },
-  
+
   // Admin user operations
   async getAdminByUsername(username) {
     const result = await pool.query('SELECT * FROM admin_users WHERE username = $1', [username]);
     return result.rows[0];
   },
-  
+
   async createAdmin(username, password_hash) {
     const result = await pool.query(
       'INSERT INTO admin_users (username, password_hash) VALUES ($1, $2) RETURNING *',
       [username, password_hash]
     );
     return result.rows[0];
+  },
+
+  // Banners CRUD
+  async getAllBanners() {
+    const result = await pool.query(
+      'SELECT * FROM banners WHERE is_active = true ORDER BY sort_order ASC, created_at DESC'
+    );
+    return result.rows;
+  },
+
+  async createBanner(image_url, link_url, sort_order) {
+    const result = await pool.query(
+      'INSERT INTO banners (image_url, link_url, sort_order) VALUES ($1, $2, $3) RETURNING *',
+      [image_url, link_url || null, sort_order || 0]
+    );
+    return result.rows[0];
+  },
+
+  async updateBanner(id, image_url, link_url, sort_order) {
+    const result = await pool.query(
+      'UPDATE banners SET image_url = $1, link_url = $2, sort_order = $3 WHERE id = $4 RETURNING *',
+      [image_url, link_url || null, sort_order || 0, id]
+    );
+    return result.rows[0];
+  },
+
+  async deleteBanner(id) {
+    await pool.query('UPDATE banners SET is_active = false WHERE id = $1', [id]);
   }
 };
 

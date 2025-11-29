@@ -31,6 +31,8 @@ function showTab(tabName) {
     // Load data
     if (tabName === 'products') {
         loadProducts();
+    } else if (tabName === 'banners') {
+        loadBanners();
     } else if (tabName === 'orders') {
         loadOrders();
     }
@@ -159,6 +161,138 @@ document.getElementById('productImage').addEventListener('change', (e) => {
         const reader = new FileReader();
         reader.onload = (e) => {
             const preview = document.getElementById('imagePreview');
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// ==================== Banners ====================
+
+async function loadBanners() {
+    try {
+        const response = await fetch('/api/banners');
+        const banners = await response.json();
+
+        const bannersList = document.getElementById('bannersList');
+
+        if (banners.length === 0) {
+            bannersList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 40px;">Баннеров пока нет</p>';
+            return;
+        }
+
+        bannersList.innerHTML = banners.map(banner => `
+      <div class="banner-card" style="background: var(--card-bg); padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: var(--shadow);">
+        <img src="${banner.image_url}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 10px;" alt="Banner">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <div style="font-weight: 600;">Порядок: ${banner.sort_order}</div>
+            ${banner.link_url ? `<div style="font-size: 14px; color: var(--text-secondary);">${banner.link_url}</div>` : ''}
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-edit" onclick="editBanner(${banner.id})">✏️</button>
+            <button class="btn-delete" onclick="deleteBanner(${banner.id})">🗑️</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    } catch (error) {
+        console.error('Error loading banners:', error);
+    }
+}
+
+function showAddBanner() {
+    document.getElementById('bannerFormTitle').textContent = 'Добавить баннер';
+    document.getElementById('bannerId').value = '';
+    document.getElementById('bannerDataForm').reset();
+    document.getElementById('bannerImagePreview').style.display = 'none';
+    document.getElementById('bannerForm').style.display = 'flex';
+}
+
+function hideBannerForm() {
+    document.getElementById('bannerForm').style.display = 'none';
+}
+
+async function editBanner(id) {
+    try {
+        const response = await fetch('/api/banners');
+        const banners = await response.json();
+        const banner = banners.find(b => b.id === id);
+
+        if (!banner) return;
+
+        document.getElementById('bannerFormTitle').textContent = 'Изменить баннер';
+        document.getElementById('bannerId').value = banner.id;
+        document.getElementById('bannerLink').value = banner.link_url || '';
+        document.getElementById('bannerSort').value = banner.sort_order;
+
+        const preview = document.getElementById('bannerImagePreview');
+        preview.src = banner.image_url;
+        preview.style.display = 'block';
+
+        document.getElementById('bannerForm').style.display = 'flex';
+    } catch (error) {
+        console.error('Error loading banner:', error);
+    }
+}
+
+async function deleteBanner(id) {
+    if (!confirm('Удалить этот баннер?')) return;
+
+    try {
+        await fetch(`/api/banners/${id}`, { method: 'DELETE' });
+        loadBanners();
+    } catch (error) {
+        console.error('Error deleting banner:', error);
+        alert('Ошибка при удалении баннера');
+    }
+}
+
+// Handle banner form submission
+document.getElementById('bannerDataForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('bannerId').value;
+    const formData = new FormData();
+
+    formData.append('link_url', document.getElementById('bannerLink').value);
+    formData.append('sort_order', document.getElementById('bannerSort').value);
+
+    const imageFile = document.getElementById('bannerImage').files[0];
+    if (imageFile || !id) {
+        if (imageFile) {
+            formData.append('image', imageFile);
+        } else if (!id) {
+            alert('Изображение обязательно для нового баннера');
+            return;
+        }
+    }
+
+    try {
+        const url = id ? `/api/banners/${id}` : '/api/banners';
+        const method = id ? 'PUT' : 'POST';
+
+        await fetch(url, {
+            method,
+            body: formData
+        });
+
+        hideBannerForm();
+        loadBanners();
+    } catch (error) {
+        console.error('Error saving banner:', error);
+        alert('Ошибка при сохранении баннера');
+    }
+});
+
+// Banner image preview
+document.getElementById('bannerImage').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const preview = document.getElementById('bannerImagePreview');
             preview.src = e.target.result;
             preview.style.display = 'block';
         };

@@ -101,6 +101,61 @@ app.delete('/api/products/:id', async (req, res) => {
     }
 });
 
+// Get all banners
+app.get('/api/banners', async (req, res) => {
+    try {
+        const banners = await db.getAllBanners();
+        res.json(banners);
+    } catch (error) {
+        console.error('Error fetching banners:', error);
+        res.status(500).json({ error: 'Failed to fetch banners' });
+    }
+});
+
+// Create banner (admin only)
+app.post('/api/banners', upload.single('image'), async (req, res) => {
+    try {
+        const { link_url, sort_order } = req.body;
+        const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+        if (!image_url) {
+            return res.status(400).json({ error: 'Image is required' });
+        }
+
+        const banner = await db.createBanner(image_url, link_url, parseInt(sort_order) || 0);
+        res.json(banner);
+    } catch (error) {
+        console.error('Error creating banner:', error);
+        res.status(500).json({ error: 'Failed to create banner' });
+    }
+});
+
+// Update banner (admin only)
+app.put('/api/banners/:id', upload.single('image'), async (req, res) => {
+    try {
+        const { link_url, sort_order } = req.body;
+        const existingBanner = await db.getAllBanners().then(b => b.find(x => x.id == req.params.id));
+        const image_url = req.file ? `/uploads/${req.file.filename}` : existingBanner?.image_url;
+
+        const banner = await db.updateBanner(req.params.id, image_url, link_url, parseInt(sort_order) || 0);
+        res.json(banner);
+    } catch (error) {
+        console.error('Error updating banner:', error);
+        res.status(500).json({ error: 'Failed to update banner' });
+    }
+});
+
+// Delete banner (admin only)
+app.delete('/api/banners/:id', async (req, res) => {
+    try {
+        await db.deleteBanner(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting banner:', error);
+        res.status(500).json({ error: 'Failed to delete banner' });
+    }
+});
+
 // Create order and generate invoice
 app.post('/api/orders', async (req, res) => {
     try {
@@ -191,7 +246,17 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 
+// ==================== Keep-Alive (Prevent Render sleep) ====================
+
+// Ping self every 30 seconds to keep awake on Render free tier
+setInterval(() => {
+    const url = process.env.WEBAPP_URL || `http://localhost:${PORT}`;
+    fetch(`${url}/api/products`)
+        .catch(err => { }); // Ignore errors
+}, 30000); // 30 seconds
+
 // ==================== Initialize and Start ====================
+
 
 async function start() {
     try {
