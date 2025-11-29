@@ -120,8 +120,11 @@ bot.on('successful_payment', async (msg) => {
             msg.from.id,
             msg.from.username,
             order_data.total_uah,
-            payment.total_amount, // Amount in Stars
+            payment.total_amount, // total_stars
+            0, // total_ton (not used for stars payment)
             platform,
+            'stars', // payment_method
+            null, // transaction_hash
             order_data.items
         );
 

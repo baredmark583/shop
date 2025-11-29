@@ -88,6 +88,14 @@ async function initDatabase() {
       )
     `);
 
+    // Migrate orders table (add new columns if not exist)
+    await client.query(`
+      ALTER TABLE orders 
+      ADD COLUMN IF NOT EXISTS total_ton DECIMAL(10, 4),
+      ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'stars',
+      ADD COLUMN IF NOT EXISTS transaction_hash VARCHAR(255);
+    `);
+
     // Order items table
     await client.query(`
       CREATE TABLE IF NOT EXISTS order_items (
