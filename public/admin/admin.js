@@ -379,7 +379,11 @@ async function loadOrders() {
           </div>
         </div>
         <div class="order-total">
-          💰 ${order.total_uah} грн / ${order.total_stars} ⭐
+          💰 ${order.total_uah} грн
+          ${order.payment_method === 'ton' ?
+                `<br>💎 ${order.total_ton} TON` :
+                `<br>⭐ ${order.total_stars} Stars`
+            }
         </div>
       </div>
     `).join('');
