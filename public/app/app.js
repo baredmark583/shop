@@ -126,6 +126,16 @@ function displayProducts() {
 
     productsList.innerHTML = products.map(product => {
         const starsPrice = convertToStars(product.price_uah);
+        const tonPrice = (product.price_uah / 1000).toFixed(4);
+
+        // Determine which price to display
+        let priceDisplay = `${starsPrice} ⭐`; // default Stars
+        if (shopSettings.enable_ton && !shopSettings.enable_stars) {
+            priceDisplay = `${tonPrice} 💎 TON`;
+        } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
+            priceDisplay = `${tonPrice} 💎 TON`;
+        }
+
         return `
       <div class="product-card" onclick="openProductModal(${product.id})">
         ${product.image_url ?
@@ -140,7 +150,7 @@ function displayProducts() {
           <div class="product-footer">
             <div>
               <div class="product-price">${product.price_uah} грн</div>
-              <div class="product-stars">${starsPrice} ⭐</div>
+              <div class="product-stars">${priceDisplay}</div>
             </div>
             <button class="btn-add-cart" onclick="addToCart(${product.id}, event)">
                 <iconify-icon icon="mdi:cart-plus"></iconify-icon>
@@ -209,7 +219,18 @@ function openProductModal(productId) {
     document.getElementById('modalProductName').textContent = product.name;
     document.getElementById('modalProductDescription').textContent = product.description || 'Нет описания';
     document.getElementById('modalProductPrice').textContent = `${product.price_uah} грн`;
-    document.getElementById('modalProductStars').textContent = `${convertToStars(product.price_uah)} ⭐`;
+
+    // Display appropriate payment method
+    const starsPrice = convertToStars(product.price_uah);
+    const tonPrice = (product.price_uah / 1000).toFixed(4);
+
+    if (shopSettings.enable_ton && !shopSettings.enable_stars) {
+        document.getElementById('modalProductStars').textContent = `${tonPrice} 💎 TON`;
+    } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
+        document.getElementById('modalProductStars').textContent = `${tonPrice} 💎 TON`;
+    } else {
+        document.getElementById('modalProductStars').textContent = `${starsPrice} ⭐`;
+    }
 
     document.getElementById('productModal').style.display = 'block';
     tg.HapticFeedback.impactOccurred('medium');
@@ -351,9 +372,21 @@ function displayCart() {
     // Calculate totals
     const totalUAH = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalStars = convertToStars(totalUAH);
+    const totalTON = totalUAH / 1000; // Approximate rate
 
     document.getElementById('totalUAH').textContent = totalUAH.toFixed(2) + ' грн';
-    document.getElementById('totalStars').textContent = totalStars + ' ⭐';
+
+    // Display appropriate payment method
+    if (shopSettings.enable_ton && !shopSettings.enable_stars) {
+        // Show TON only
+        document.getElementById('totalStars').textContent = totalTON.toFixed(4) + ' 💎 TON';
+    } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
+        // Show TON (if both enabled)
+        document.getElementById('totalStars').textContent = totalTON.toFixed(4) + ' 💎 TON';
+    } else {
+        // Show Stars (default)
+        document.getElementById('totalStars').textContent = totalStars + ' ⭐';
+    }
 }
 
 // Checkout
@@ -371,13 +404,25 @@ async function checkout() {
     try {
         showLoading(true);
 
+        // Determine payment method based on settings
+        let payment_method = 'stars'; // default
+
+        if (shopSettings.enable_ton && !shopSettings.enable_stars) {
+            // Only TON enabled
+            payment_method = 'ton';
+        } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
+            // Both enabled - let user choose (for now default to TON if both enabled)
+            payment_method = 'ton';
+        }
+
         const orderData = {
             telegram_user_id: userId,
             items: cart.map(item => ({
                 product_id: item.product_id,
                 quantity: item.quantity
             })),
-            platform: getPlatform()
+            platform: getPlatform(),
+            payment_method: payment_method
         };
 
         const response = await fetch('/api/orders', {
@@ -394,8 +439,15 @@ async function checkout() {
             saveCart();
             updateCartCount();
 
-            // Show success message
-            tg.showAlert(`Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`);
+            // Show appropriate success message based on payment method
+            let message = '';
+            if (payment_method === 'ton') {
+                message = `Пожалуйста, отправьте ${result.total_ton.toFixed(4)} TON на адрес:\n${shopSettings.ton_wallet}\n\nСумма: ${result.total_uah} грн`;
+                tg.showAlert(message);
+            } else {
+                message = `Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`;
+                tg.showAlert(message);
+            }
 
             // Return to main view
             showView('main');
