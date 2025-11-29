@@ -2,6 +2,9 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
+// Apply Telegram theme immediately
+applyTelegramTheme();
+
 // Get user platform from Telegram
 const platform = tg.platform || 'unknown';
 const userId = tg.initDataUnsafe?.user?.id;
@@ -9,23 +12,66 @@ const userId = tg.initDataUnsafe?.user?.id;
 // Cart management
 let cart = JSON.parse(localStorage.getItem('cart') || '[]');
 let products = [];
+let selectedProductId = null;
 
 // Initialize
 async function init() {
+    // Setup profile
+    if (tg.initDataUnsafe?.user) {
+        const userName = document.getElementById('userName');
+        const userIdEl = document.getElementById('userId');
+        if (userName) userName.textContent = tg.initDataUnsafe.user.first_name || 'Пользователь';
+        if (userIdEl) userIdEl.textContent = `ID: ${userId}`;
+    }
+
+    await loadBanners();
     await loadProducts();
     updateCartCount();
 
-    // Apply Telegram theme
+    // Re-apply theme in case of dynamic changes
     applyTelegramTheme();
 }
 
 // Apply Telegram theme colors
 function applyTelegramTheme() {
     if (tg.themeParams) {
-        document.documentElement.style.setProperty('--primary', tg.themeParams.button_color || '#007AFF');
-        document.documentElement.style.setProperty('--background', tg.themeParams.bg_color || '#F5F5F7');
-        document.documentElement.style.setProperty('--card-bg', tg.themeParams.secondary_bg_color || '#FFFFFF');
-        document.documentElement.style.setProperty('--text-primary', tg.themeParams.text_color || '#1D1D1F');
+        const root = document.documentElement;
+        root.style.setProperty('--primary', tg.themeParams.button_color || '#007AFF');
+        root.style.setProperty('--primary-hover', adjustColor(tg.themeParams.button_color || '#007AFF', -20));
+        root.style.setProperty('--background', tg.themeParams.bg_color || '#F5F5F7');
+        root.style.setProperty('--card-bg', tg.themeParams.secondary_bg_color || '#FFFFFF');
+        root.style.setProperty('--text-primary', tg.themeParams.text_color || '#1D1D1F');
+        root.style.setProperty('--text-secondary', tg.themeParams.hint_color || '#86868B');
+    }
+}
+
+// Helper to darken/lighten color
+function adjustColor(color, amount) {
+    return '#' + color.replace(/^#/, '').replace(/../g, color => ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
+}
+
+// Load banners
+async function loadBanners() {
+    try {
+        const response = await fetch('/api/banners');
+        const banners = await response.json();
+
+        const bannersSlider = document.getElementById('bannersSlider');
+        if (!bannersSlider) return;
+
+        if (banners.length === 0) {
+            bannersSlider.style.display = 'none';
+            return;
+        }
+
+        bannersSlider.innerHTML = banners.map(banner => `
+            <div class="banner-slide">
+                <img src="${banner.image_url}" alt="Banner" onclick="${banner.link_url ? `window.open('${banner.link_url}', '_blank')` : ''}">
+            </div>
+        `).join('');
+        bannersSlider.style.display = 'flex';
+    } catch (error) {
+        console.error('Error loading banners:', error);
     }
 }
 
@@ -47,6 +93,7 @@ async function loadProducts() {
 // Display products
 function displayProducts() {
     const productsList = document.getElementById('productsList');
+    if (!productsList) return;
 
     if (products.length === 0) {
         productsList.innerHTML = `
@@ -61,7 +108,7 @@ function displayProducts() {
     productsList.innerHTML = products.map(product => {
         const starsPrice = convertToStars(product.price_uah);
         return `
-      <div class="product-card" onclick="addToCart(${product.id})">
+      <div class="product-card" onclick="openProductModal(${product.id})">
         ${product.image_url ?
                 `<img src="${product.image_url}" class="product-image" alt="${product.name}">` :
                 `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
@@ -76,7 +123,9 @@ function displayProducts() {
               <div class="product-price">${product.price_uah} грн</div>
               <div class="product-stars">${starsPrice} ⭐</div>
             </div>
-            <button class="btn-add-cart" onclick="addToCart(${product.id}, event)">+</button>
+            <button class="btn-add-cart" onclick="addToCart(${product.id}, event)">
+                <iconify-icon icon="mdi:cart-plus"></iconify-icon>
+            </button>
           </div>
         </div>
       </div>
@@ -98,6 +147,65 @@ function getPlatform() {
         return 'mobile';
     }
     return 'desktop';
+}
+
+// View Navigation
+function showView(viewName) {
+    // Hide all views
+    document.getElementById('mainView').style.display = 'none';
+    document.getElementById('cartView').style.display = 'none';
+    document.getElementById('profileView').style.display = 'none';
+
+    // Show selected view
+    if (viewName === 'main') {
+        document.getElementById('mainView').style.display = 'block';
+    } else if (viewName === 'cart') {
+        displayCart();
+        document.getElementById('cartView').style.display = 'block';
+    } else if (viewName === 'profile') {
+        document.getElementById('profileView').style.display = 'block';
+    }
+
+    // Update navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.view === viewName) {
+            item.classList.add('active');
+        }
+    });
+
+    tg.HapticFeedback.impactOccurred('light');
+}
+
+// Product Modal
+function openProductModal(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    selectedProductId = productId;
+
+    const modalImg = document.getElementById('modalProductImage');
+    if (modalImg) modalImg.src = product.image_url || '';
+
+    document.getElementById('modalProductName').textContent = product.name;
+    document.getElementById('modalProductDescription').textContent = product.description || 'Нет описания';
+    document.getElementById('modalProductPrice').textContent = `${product.price_uah} грн`;
+    document.getElementById('modalProductStars').textContent = `${convertToStars(product.price_uah)} ⭐`;
+
+    document.getElementById('productModal').style.display = 'block';
+    tg.HapticFeedback.impactOccurred('medium');
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').style.display = 'none';
+    selectedProductId = null;
+}
+
+function addToCartFromModal() {
+    if (selectedProductId) {
+        addToCart(selectedProductId);
+        closeProductModal();
+    }
 }
 
 // Add to cart
@@ -165,24 +273,21 @@ function saveCart() {
 // Update cart count
 function updateCartCount() {
     const count = cart.reduce((sum, item) => sum + item.quantity, 0);
-    document.getElementById('cartCount').textContent = count;
-}
 
-// Show cart
-function showCart() {
-    displayCart();
-    document.getElementById('mainView').style.display = 'none';
-    document.getElementById('cartView').style.display = 'block';
+    // Update header count if exists (legacy)
+    const headerCount = document.getElementById('cartCount');
+    if (headerCount) headerCount.textContent = count;
 
-    tg.HapticFeedback.impactOccurred('light');
-}
-
-// Show main view
-function showMain() {
-    document.getElementById('mainView').style.display = 'block';
-    document.getElementById('cartView').style.display = 'none';
-
-    tg.HapticFeedback.impactOccurred('light');
+    // Update nav badge
+    const badge = document.getElementById('navCartBadge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
 }
 
 // Display cart
@@ -274,7 +379,7 @@ async function checkout() {
             tg.showAlert(`Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`);
 
             // Return to main view
-            showMain();
+            showView('main');
         } else {
             tg.showAlert('Ошибка создания заказа: ' + (result.error || 'Неизвестная ошибка'));
         }
@@ -288,7 +393,8 @@ async function checkout() {
 
 // Show/hide loading
 function showLoading(show) {
-    document.getElementById('loading').style.display = show ? 'flex' : 'none';
+    const loader = document.getElementById('loading');
+    if (loader) loader.style.display = show ? 'flex' : 'none';
 }
 
 // Initialize app
