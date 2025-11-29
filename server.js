@@ -156,10 +156,32 @@ app.delete('/api/banners/:id', async (req, res) => {
     }
 });
 
+// Get settings
+app.get('/api/settings', async (req, res) => {
+    try {
+        const settings = await db.getSettings();
+        res.json(settings || {});
+    } catch (error) {
+        console.error('Error fetching settings:', error);
+        res.status(500).json({ error: 'Failed to fetch settings' });
+    }
+});
+
+// Update settings (admin only)
+app.put('/api/settings', async (req, res) => {
+    try {
+        const settings = await db.updateSettings(req.body);
+        res.json(settings);
+    } catch (error) {
+        console.error('Error updating settings:', error);
+        res.status(500).json({ error: 'Failed to update settings' });
+    }
+});
+
 // Create order and generate invoice
 app.post('/api/orders', async (req, res) => {
     try {
-        const { telegram_user_id, items, platform } = req.body;
+        const { telegram_user_id, items, platform, payment_method, transaction_hash } = req.body;
 
         // Calculate total
         let total_uah = 0;
@@ -182,18 +204,38 @@ app.post('/api/orders', async (req, res) => {
             });
         }
 
+        const total_stars = convertToStars(total_uah, platform || 'mobile');
+        const total_ton = total_uah / 1000; // Approximate rate: 1000 UAH = 1 TON (simplified for demo)
+
         const orderData = {
             total_uah,
             items: enrichedItems
         };
 
-        // Send invoice via bot
-        const invoice = await createInvoice(telegram_user_id, orderData, platform || 'mobile');
+        // Create order in DB
+        const order = await db.createOrder(
+            telegram_user_id,
+            null, // username
+            total_uah,
+            total_stars,
+            total_ton,
+            platform || 'mobile',
+            payment_method || 'stars',
+            transaction_hash,
+            enrichedItems
+        );
+
+        // If payment method is 'stars', create invoice
+        if (payment_method === 'stars' || !payment_method) {
+            await createInvoice(telegram_user_id, orderData, platform || 'mobile');
+        }
 
         res.json({
             success: true,
+            order_id: order.id,
             total_uah,
-            total_stars: convertToStars(total_uah, platform || 'mobile')
+            total_stars,
+            total_ton
         });
     } catch (error) {
         console.error('Error creating order:', error);

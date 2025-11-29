@@ -35,8 +35,53 @@ function showTab(tabName) {
         loadBanners();
     } else if (tabName === 'orders') {
         loadOrders();
+    } else if (tabName === 'settings') {
+        loadSettings();
     }
 }
+
+// ... (existing code) ...
+
+// Settings
+async function loadSettings() {
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+
+        document.getElementById('enableStars').checked = settings.enable_stars;
+        document.getElementById('enableTon').checked = settings.enable_ton;
+        document.getElementById('tonWallet').value = settings.ton_wallet || '';
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+}
+
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const settings = {
+        enable_stars: document.getElementById('enableStars').checked,
+        enable_ton: document.getElementById('enableTon').checked,
+        ton_wallet: document.getElementById('tonWallet').value
+    };
+
+    try {
+        const response = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+            alert('Настройки сохранены!');
+        } else {
+            alert('Ошибка сохранения настроек');
+        }
+    } catch (error) {
+        console.error('Error saving settings:', error);
+        alert('Ошибка сохранения настроек');
+    }
+});
 
 // ==================== Products ====================
 

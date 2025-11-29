@@ -50,6 +50,26 @@ async function initDatabase() {
       )
     `);
 
+    // Settings table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key VARCHAR(50) PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Initialize default settings if not exist
+    const settingsExist = await client.query('SELECT * FROM settings WHERE key = $1', ['shop_settings']);
+    if (settingsExist.rows.length === 0) {
+      const defaultSettings = {
+        enable_stars: true,
+        enable_ton: false,
+        ton_wallet: 'UQARnCdfRw0VcT86ApqHJEdMGzQU3T_MnPbNs71A6nOXcF91'
+      };
+      await client.query('INSERT INTO settings (key, value) VALUES ($1, $2)', ['shop_settings', JSON.stringify(defaultSettings)]);
+    }
+
     // Orders table
     await client.query(`
       CREATE TABLE IF NOT EXISTS orders (
@@ -57,8 +77,11 @@ async function initDatabase() {
         telegram_user_id BIGINT NOT NULL,
         telegram_username VARCHAR(255),
         total_uah DECIMAL(10, 2) NOT NULL,
-        total_stars INTEGER NOT NULL,
+        total_stars INTEGER,
+        total_ton DECIMAL(10, 4),
         platform VARCHAR(50),
+        payment_method VARCHAR(20) DEFAULT 'stars', -- 'stars' or 'ton'
+        transaction_hash VARCHAR(255),
         status VARCHAR(50) DEFAULT 'pending',
         payment_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -129,15 +152,15 @@ const db = {
   },
 
   // Create order
-  async createOrder(telegram_user_id, telegram_username, total_uah, total_stars, platform, items) {
+  async createOrder(telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash, items) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       // Create order
       const orderResult = await client.query(
-        'INSERT INTO orders (telegram_user_id, telegram_username, total_uah, total_stars, platform) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-        [telegram_user_id, telegram_username, total_uah, total_stars, platform]
+        'INSERT INTO orders (telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+        [telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash]
       );
       const order = orderResult.rows[0];
 
@@ -228,6 +251,20 @@ const db = {
 
   async deleteBanner(id) {
     await pool.query('UPDATE banners SET is_active = false WHERE id = $1', [id]);
+  },
+
+  // Settings
+  async getSettings() {
+    const result = await pool.query('SELECT value FROM settings WHERE key = $1', ['shop_settings']);
+    return result.rows[0] ? JSON.parse(result.rows[0].value) : null;
+  },
+
+  async updateSettings(settings) {
+    const result = await pool.query(
+      'UPDATE settings SET value = $1, updated_at = CURRENT_TIMESTAMP WHERE key = $2 RETURNING value',
+      [JSON.stringify(settings), 'shop_settings']
+    );
+    return result.rows[0] ? JSON.parse(result.rows[0].value) : null;
   }
 };
 

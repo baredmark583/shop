@@ -14,6 +14,14 @@ let cart = JSON.parse(localStorage.getItem('cart') || '[]');
 let products = [];
 let selectedProductId = null;
 
+// TON Connect & Settings
+let tonConnectUI;
+let shopSettings = {
+    enable_stars: true,
+    enable_ton: false,
+    ton_wallet: ''
+};
+
 // Initialize
 async function init() {
     // Setup profile
@@ -24,6 +32,21 @@ async function init() {
         if (userIdEl) userIdEl.textContent = `ID: ${userId}`;
     }
 
+    // Load settings
+    try {
+        const response = await fetch('/api/settings');
+        const settings = await response.json();
+        if (settings) shopSettings = { ...shopSettings, ...settings };
+    } catch (error) {
+        console.error('Error loading settings:', error);
+    }
+
+    // Initialize TON Connect
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+        manifestUrl: window.location.origin + '/tonconnect-manifest.json',
+        buttonRootId: 'ton-connect'
+    });
+
     await loadBanners();
     await loadProducts();
     updateCartCount();
@@ -31,6 +54,462 @@ async function init() {
     // Re-apply theme in case of dynamic changes
     applyTelegramTheme();
 }
+
+// Apply Telegram theme colors
+function applyTelegramTheme() {
+    if (tg.themeParams) {
+        const root = document.documentElement;
+        root.style.setProperty('--primary', tg.themeParams.button_color || '#007AFF');
+        root.style.setProperty('--primary-hover', adjustColor(tg.themeParams.button_color || '#007AFF', -20));
+        root.style.setProperty('--background', tg.themeParams.bg_color || '#F5F5F7');
+        root.style.setProperty('--card-bg', tg.themeParams.secondary_bg_color || '#FFFFFF');
+        root.style.setProperty('--text-primary', tg.themeParams.text_color || '#1D1D1F');
+        root.style.setProperty('--text-secondary', tg.themeParams.hint_color || '#86868B');
+    }
+}
+
+// Helper to darken/lighten color
+function adjustColor(color, amount) {
+    return '#' + color.replace(/^#/, '').replace(/../g, color => ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
+}
+
+// Load banners
+async function loadBanners() {
+    try {
+        const response = await fetch('/api/banners');
+        const banners = await response.json();
+
+        const bannersSlider = document.getElementById('bannersSlider');
+        if (!bannersSlider) return;
+
+        if (banners.length === 0) {
+            bannersSlider.style.display = 'none';
+            return;
+        }
+
+        bannersSlider.innerHTML = banners.map(banner => `
+            <div class="banner-slide">
+                <img src="${banner.image_url}" alt="Banner" onclick="${banner.link_url ? `window.open('${banner.link_url}', '_blank')` : ''}">
+            </div>
+        `).join('');
+        bannersSlider.style.display = 'flex';
+    } catch (error) {
+        console.error('Error loading banners:', error);
+    }
+}
+
+// Load products
+async function loadProducts() {
+    try {
+        showLoading(true);
+        const response = await fetch('/api/products');
+        products = await response.json();
+        displayProducts();
+    } catch (error) {
+        console.error('Error loading products:', error);
+        tg.showAlert('Ошибка загрузки товаров');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Display products
+function displayProducts() {
+    const productsList = document.getElementById('productsList');
+    if (!productsList) return;
+
+    if (products.length === 0) {
+        productsList.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+        <div style="font-size: 64px; margin-bottom: 20px;">📦</div>
+        <p>Товаров пока нет</p>
+      </div>
+    `;
+        return;
+    }
+
+    productsList.innerHTML = products.map(product => {
+        const starsPrice = convertToStars(product.price_uah);
+        return `
+      <div class="product-card" onclick="openProductModal(${product.id})">
+        ${product.image_url ?
+                `<img src="${product.image_url}" class="product-image" alt="${product.name}">` :
+                `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 48px;">📦</span>
+          </div>`
+            }
+        <div class="product-info">
+          <div class="product-name">${product.name}</div>
+          ${product.description ? `<div class="product-description">${product.description}</div>` : ''}
+          <div class="product-footer">
+            <div>
+              <div class="product-price">${product.price_uah} грн</div>
+              <div class="product-stars">${starsPrice} ⭐</div>
+            </div>
+            <button class="btn-add-cart" onclick="addToCart(${product.id}, event)">
+                <iconify-icon icon="mdi:cart-plus"></iconify-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    }).join('');
+}
+
+// Convert UAH to Stars based on platform
+function convertToStars(amountUAH) {
+    // Mobile platforms have Google Play commission
+    const isMobile = platform.includes('android') || platform.includes('ios');
+    const rate = isMobile ? 1.0 : 1.2;
+    return Math.ceil(amountUAH * rate);
+}
+
+// Get platform type
+function getPlatform() {
+    if (platform.includes('android') || platform.includes('ios')) {
+        return 'mobile';
+    }
+    return 'desktop';
+}
+
+// View Navigation
+function showView(viewName) {
+    // Hide all views
+    document.getElementById('mainView').style.display = 'none';
+    document.getElementById('cartView').style.display = 'none';
+    document.getElementById('profileView').style.display = 'none';
+
+    // Show selected view
+    if (viewName === 'main') {
+        document.getElementById('mainView').style.display = 'block';
+    } else if (viewName === 'cart') {
+        displayCart();
+        document.getElementById('cartView').style.display = 'block';
+    } else if (viewName === 'profile') {
+        document.getElementById('profileView').style.display = 'block';
+    }
+
+    // Update navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.view === viewName) {
+            item.classList.add('active');
+        }
+    });
+
+    tg.HapticFeedback.impactOccurred('light');
+}
+
+// Product Modal
+function openProductModal(productId) {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    selectedProductId = productId;
+
+    const modalImg = document.getElementById('modalProductImage');
+    if (modalImg) modalImg.src = product.image_url || '';
+
+    document.getElementById('modalProductName').textContent = product.name;
+    document.getElementById('modalProductDescription').textContent = product.description || 'Нет описания';
+    document.getElementById('modalProductPrice').textContent = `${product.price_uah} грн`;
+    document.getElementById('modalProductStars').textContent = `${convertToStars(product.price_uah)} ⭐`;
+
+    document.getElementById('productModal').style.display = 'block';
+    tg.HapticFeedback.impactOccurred('medium');
+}
+
+function closeProductModal() {
+    document.getElementById('productModal').style.display = 'none';
+    selectedProductId = null;
+}
+
+function addToCartFromModal() {
+    if (selectedProductId) {
+        addToCart(selectedProductId);
+        closeProductModal();
+    }
+}
+
+// Add to cart
+function addToCart(productId, event) {
+    if (event) {
+        event.stopPropagation();
+    }
+
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const cartItem = cart.find(item => item.product_id === productId);
+
+    if (cartItem) {
+        cartItem.quantity += 1;
+    } else {
+        cart.push({
+            product_id: productId,
+            name: product.name,
+            price: product.price_uah,
+            image_url: product.image_url,
+            quantity: 1
+        });
+    }
+
+    saveCart();
+    updateCartCount();
+
+    // Haptic feedback
+    tg.HapticFeedback.impactOccurred('light');
+}
+
+// Remove from cart
+function removeFromCart(productId) {
+    cart = cart.filter(item => item.product_id !== productId);
+    saveCart();
+    updateCartCount();
+    displayCart();
+
+    tg.HapticFeedback.impactOccurred('medium');
+}
+
+// Update quantity
+function updateQuantity(productId, delta) {
+    const item = cart.find(item => item.product_id === productId);
+    if (!item) return;
+
+    item.quantity += delta;
+
+    if (item.quantity <= 0) {
+        removeFromCart(productId);
+    } else {
+        saveCart();
+        displayCart();
+    }
+
+    tg.HapticFeedback.impactOccurred('light');
+}
+
+// Save cart to localStorage
+function saveCart() {
+    localStorage.setItem('cart', JSON.stringify(cart));
+}
+
+// Update cart count
+function updateCartCount() {
+    const count = cart.reduce((sum, item) => sum + item.quantity, 0);
+
+    // Update header count if exists (legacy)
+    const headerCount = document.getElementById('cartCount');
+    if (headerCount) headerCount.textContent = count;
+
+    // Update nav badge
+    const badge = document.getElementById('navCartBadge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+}
+
+// Display cart
+function displayCart() {
+    const cartItems = document.getElementById('cartItems');
+    const cartEmpty = document.getElementById('cartEmpty');
+    const cartFooter = document.getElementById('cartFooter');
+
+    if (cart.length === 0) {
+        cartItems.style.display = 'none';
+        cartEmpty.style.display = 'block';
+        cartFooter.style.display = 'none';
+        return;
+    }
+
+    cartItems.style.display = 'flex';
+    cartEmpty.style.display = 'none';
+    cartFooter.style.display = 'block';
+
+    // Display items
+    cartItems.innerHTML = cart.map(item => `
+    <div class="cart-item">
+      ${item.image_url ?
+            `<img src="${item.image_url}" class="cart-item-image" alt="${item.name}">` :
+            `<div class="cart-item-image" style="display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 32px;">📦</span>
+        </div>`
+        }
+      <div class="cart-item-info">
+        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-item-price">${item.price} грн × ${item.quantity}</div>
+        <div class="cart-item-controls">
+          <button class="btn-quantity" onclick="updateQuantity(${item.product_id}, -1)">−</button>
+          <span class="item-quantity">${item.quantity}</span>
+          <button class="btn-quantity" onclick="updateQuantity(${item.product_id}, 1)">+</button>
+          <button class="btn-remove" onclick="removeFromCart(${item.product_id})">🗑️</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+    // Calculate totals
+    const totalUAH = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalStars = convertToStars(totalUAH);
+    const totalTON = (totalUAH / 1000).toFixed(4); // Approx rate
+
+    document.getElementById('totalUAH').textContent = totalUAH.toFixed(2) + ' грн';
+    document.getElementById('totalStars').textContent = totalStars + ' ⭐';
+    document.getElementById('totalTON').textContent = totalTON + ' TON';
+
+    // Show/Hide Payment Buttons based on settings
+    const btnStars = document.getElementById('btnPayStars');
+    const btnTon = document.getElementById('btnPayTon');
+    const totalTonEl = document.getElementById('totalTON');
+
+    if (btnStars) btnStars.style.display = shopSettings.enable_stars ? 'block' : 'none';
+    if (btnTon) btnTon.style.display = shopSettings.enable_ton ? 'block' : 'none';
+    if (totalTonEl) totalTonEl.style.display = shopSettings.enable_ton ? 'block' : 'none';
+}
+
+// Checkout
+async function checkout(method = 'stars') {
+    if (!userId) {
+        tg.showAlert('Ошибка: не удалось получить ID пользователя');
+        return;
+    }
+
+    if (cart.length === 0) {
+        tg.showAlert('Корзина пуста');
+        return;
+    }
+
+    if (method === 'ton') {
+        await payWithTon();
+        return;
+    }
+
+    // Default Stars Payment
+    try {
+        showLoading(true);
+
+        const orderData = {
+            telegram_user_id: userId,
+            items: cart.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+            })),
+            platform: getPlatform(),
+            payment_method: 'stars'
+        };
+
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Clear cart
+            cart = [];
+            saveCart();
+            updateCartCount();
+
+            // Show success message
+            tg.showAlert(`Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`);
+
+            // Return to main view
+            showView('main');
+        } else {
+            tg.showAlert('Ошибка создания заказа: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('Checkout error:', error);
+        tg.showAlert('Ошибка при оформлении заказа');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Pay with TON
+async function payWithTon() {
+    if (!tonConnectUI.connected) {
+        tg.showAlert('Пожалуйста, подключите кошелек в профиле');
+        showView('profile');
+        return;
+    }
+
+    if (!shopSettings.ton_wallet) {
+        tg.showAlert('Ошибка магазина: не настроен кошелек получателя');
+        return;
+    }
+
+    const totalUAH = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const amountTon = (totalUAH / 1000).toFixed(4); // Approx rate
+    const amountNano = Math.floor(amountTon * 1000000000).toString();
+
+    const transaction = {
+        validUntil: Math.floor(Date.now() / 1000) + 600, // 10 min
+        messages: [
+            {
+                address: shopSettings.ton_wallet,
+                amount: amountNano,
+                payload: '' // Optional: comment/memo
+            }
+        ]
+    };
+
+    try {
+        showLoading(true);
+        const result = await tonConnectUI.sendTransaction(transaction);
+
+        // If successful, create order in backend
+        const orderData = {
+            telegram_user_id: userId,
+            items: cart.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+            })),
+            platform: getPlatform(),
+            payment_method: 'ton',
+            transaction_hash: result.boc // Store BOC as hash proof
+        };
+
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
+
+        const orderResult = await response.json();
+
+        if (orderResult.success) {
+            cart = [];
+            saveCart();
+            updateCartCount();
+            tg.showAlert('Оплата прошла успешно! Заказ создан.');
+            showView('main');
+        } else {
+            tg.showAlert('Заказ создан, но возникла ошибка на сервере.');
+        }
+
+    } catch (error) {
+        console.error('TON Payment error:', error);
+        tg.showAlert('Оплата отменена или произошла ошибка');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Show/hide loading
+function showLoading(show) {
+    const loader = document.getElementById('loading');
+    if (loader) loader.style.display = show ? 'flex' : 'none';
+}
+
+// Initialize app
+init();
 
 // Apply Telegram theme colors
 function applyTelegramTheme() {
