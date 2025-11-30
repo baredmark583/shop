@@ -116,16 +116,17 @@
 
                 <!-- Ukrposhta Form -->
                 <div id="ukrposhtaForm" class="shipping-method-form" style="display: none;">
-                    <div class="form-group">
-                        <label for="upCity">Город</label>
-                        <input type="text" id="upCity" placeholder="Город" list="upCityList" oninput="onUpCityInput()">
-                        <datalist id="upCityList"></datalist>
-                    </div>
-                    <div class="form-group">
-                        <label for="upIndex">Индекс</label>
-                        <input type="text" id="upIndex" placeholder="01001" oninput="onUpIndexInput()" list="upIndexList">
-                        <datalist id="upIndexList"></datalist>
-                    </div>
+                <div class="form-group">
+                    <label for="upCity">Город</label>
+                    <input type="text" id="upCity" placeholder="Город" list="upCityList" oninput="onUpCityInput()">
+                    <datalist id="upCityList"></datalist>
+                    <input type="hidden" id="upCityId">
+                </div>
+                <div class="form-group">
+                    <label for="upIndex">Индекс</label>
+                    <input type="text" id="upIndex" placeholder="01001" oninput="onUpIndexInput()" list="upIndexList">
+                    <datalist id="upIndexList"></datalist>
+                </div>
                     <div class="form-group">
                         <label for="upAddress">Улица и дом</label>
                         <input type="text" id="upAddress" placeholder="ул. Крещатик, 1">
@@ -193,6 +194,10 @@
                     <h3 id="userName">Пользователь</h3>
                     <p id="userId" style="color: var(--text-secondary);"></p>
                     <div id="ton-connect" style="margin-top: 20px; display: flex; justify-content: center;"></div>
+                </div>
+                <div id="userOrdersSection" style="margin-top: 20px;">
+                    <h3 style="margin-bottom: 10px;">Мои заказы</h3>
+                    <div id="userOrdersList" class="user-orders-list"></div>
                 </div>
             </div>
         </div>

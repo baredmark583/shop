@@ -224,6 +224,23 @@ const db = {
     return result.rows;
   },
 
+  // Get orders by telegram user
+  async getOrdersByUser(telegramUserId) {
+    const result = await pool.query(`
+      SELECT o.*,
+             COALESCE(
+               json_agg(oi) FILTER (WHERE oi.id IS NOT NULL),
+               '[]'
+             ) AS items
+      FROM orders o
+      LEFT JOIN order_items oi ON oi.order_id = o.id
+      WHERE o.telegram_user_id = $1
+      GROUP BY o.id
+      ORDER BY o.created_at DESC
+    `, [telegramUserId]);
+    return result.rows;
+  },
+
   // Get order with items
   async getOrderWithItems(orderId) {
     const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);

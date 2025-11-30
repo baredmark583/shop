@@ -804,6 +804,31 @@ header h1 {
     font-weight: 600;
 }
 
+.user-orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.user-order-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: var(--shadow);
+}
+
+.user-order-card .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.user-order-card .items {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
 /* Adjustments for bottom nav */
 .app {
     padding-bottom: 70px;

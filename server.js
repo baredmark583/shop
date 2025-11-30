@@ -385,6 +385,36 @@ app.patch('/api/orders/:id', async (req, res) => {
     }
 });
 
+// Get orders for specific Telegram user (profile)
+app.get('/api/user/orders', async (req, res) => {
+    try {
+        const { telegram_user_id } = req.query;
+        if (!telegram_user_id) {
+            return res.status(400).json({ error: 'telegram_user_id is required' });
+        }
+        const orders = await db.getOrdersByUser(telegram_user_id);
+        res.json(orders);
+    } catch (error) {
+        console.error('Error fetching user orders:', error);
+        res.status(500).json({ error: 'Failed to fetch user orders' });
+    }
+});
+
+// Admin send message to user via Telegram
+app.post('/api/admin/message', requireAdmin, async (req, res) => {
+    try {
+        const { telegram_user_id, message } = req.body;
+        if (!telegram_user_id || !message) {
+            return res.status(400).json({ error: 'telegram_user_id and message are required' });
+        }
+        await bot.sendMessage(telegram_user_id, message);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error sending admin message:', error);
+        res.status(500).json({ error: 'Failed to send message' });
+    }
+});
+
 // Admin login
 app.post('/api/admin/login', async (req, res) => {
     try {
@@ -404,6 +434,95 @@ app.post('/api/admin/login', async (req, res) => {
     } catch (error) {
         console.error('Error logging in:', error);
         res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+// ==================== Ukrposhta proxy ====================
+
+function buildUkrHeaders() {
+    const headers = { 'Accept': 'application/json,text/plain,*/*' };
+    if (process.env.UKRPOSHTA_USER_AGENT) {
+        headers['User-Agent'] = process.env.UKRPOSHTA_USER_AGENT;
+    }
+    if (process.env.UKRPOSHTA_COOKIE) {
+        headers['Cookie'] = process.env.UKRPOSHTA_COOKIE;
+    }
+    return headers;
+}
+
+async function ukrRequest(method, params = {}) {
+    const url = new URL('https://index.ukrposhta.ua/endpoints-for-apps/index.php');
+    url.searchParams.set('method', method);
+    Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null) url.searchParams.set(k, v);
+    });
+    const response = await fetch(url.toString(), {
+        headers: buildUkrHeaders()
+    });
+    if (!response.ok) throw new Error(`Ukrposhta error ${response.status}`);
+    return response.json();
+}
+
+// Search cities (best effort: region/district optional)
+app.get('/api/ukrposhta/cities', async (req, res) => {
+    try {
+        const { region_id = '', district_id = '', query = '' } = req.query;
+        if (!query || query.length < 2) {
+            return res.json([]);
+        }
+        const data = await ukrRequest('get_city_by_region_id_and_district_id_and_city_ua', {
+            region_id,
+            district_id,
+            city_ua: query
+        });
+        res.json(data);
+    } catch (error) {
+        console.error('Ukrposhta cities error:', error);
+        res.status(500).json({ error: 'Failed to fetch cities' });
+    }
+});
+
+// Get indexes by city_id
+app.get('/api/ukrposhta/indexes', async (req, res) => {
+    try {
+        const { city_id } = req.query;
+        if (!city_id) return res.status(400).json({ error: 'city_id is required' });
+        const data = await ukrRequest('get-indexes-by-city-id', { city_id });
+        res.json(data);
+    } catch (error) {
+        console.error('Ukrposhta indexes error:', error);
+        res.status(500).json({ error: 'Failed to fetch indexes' });
+    }
+});
+
+// Streets by city
+app.get('/api/ukrposhta/streets', async (req, res) => {
+    try {
+        const { region_id = '', district_id = '', city_id = '', query = '' } = req.query;
+        if (!city_id) return res.status(400).json({ error: 'city_id is required' });
+        const data = await ukrRequest('get_street_by_region_id_and_district_id_and_city_id_and_street_ua', {
+            region_id,
+            district_id,
+            city_id,
+            street_ua: query || ''
+        });
+        res.json(data);
+    } catch (error) {
+        console.error('Ukrposhta streets error:', error);
+        res.status(500).json({ error: 'Failed to fetch streets' });
+    }
+});
+
+// Post offices by index (pc)
+app.get('/api/ukrposhta/postoffices', async (req, res) => {
+    try {
+        const { pc } = req.query;
+        if (!pc) return res.status(400).json({ error: 'pc is required' });
+        const data = await ukrRequest('get_postoffices_postdistricts_web', { pc });
+        res.json(data);
+    } catch (error) {
+        console.error('Ukrposhta postoffices error:', error);
+        res.status(500).json({ error: 'Failed to fetch post offices' });
     }
 });
 

@@ -1,4 +1,4 @@
-// Telegram Web App
+﻿// Telegram Web App
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -10,6 +10,7 @@ const userId = tg.initDataUnsafe?.user?.id;
 let cart = JSON.parse(localStorage.getItem('cart') || '[]');
 let products = [];
 let selectedProductId = null;
+let userOrders = [];
 
 // TON Connect & Settings
 let tonConnectUI;
@@ -38,14 +39,8 @@ const defaultIcons = {
     trash: 'https://api.iconify.design/mdi/trash-can-outline.svg?color=%23ff3b30'
 };
 
-// Простейшие соответствия индексов и городов (локально, без API)
-const ukrposhtaIndexMap = [
-    { index: '01001', city: 'Киев' },
-    { index: '79000', city: 'Львов' },
-    { index: '49000', city: 'Днепр' },
-    { index: '65000', city: 'Одесса' },
-    { index: '73000', city: 'Херсон' }
-];
+// ????????: ??? ????????? ??????? (?? API)
+let ukrCitiesCache = [];
 
 // Load settings from server
 async function loadSettings() {
@@ -91,6 +86,7 @@ async function init() {
     // Load initial data
     await loadBanners();
     await loadProducts();
+    await loadUserOrders();
     updateCartCount();
 
     // Setup Main Button listener
@@ -138,13 +134,9 @@ function applyIcons() {
 
 function initUkrposhtaSuggestions() {
     const cityList = document.getElementById('upCityList');
-    if (cityList) {
-        cityList.innerHTML = ukrposhtaIndexMap.map(item => `<option value="${item.city}">`).join('');
-    }
     const idxList = document.getElementById('upIndexList');
-    if (idxList) {
-        idxList.innerHTML = ukrposhtaIndexMap.map(item => `<option value="${item.index}">${item.city}</option>`).join('');
-    }
+    if (cityList) cityList.innerHTML = '';
+    if (idxList) idxList.innerHTML = '';
 }
 
 // Get platform for pricing
@@ -265,6 +257,9 @@ function showView(viewName) {
             if (cart.length > 0) {
                 tg.MainButton.show();
             }
+        } else if (viewName === 'profile') {
+            renderUserOrders();
+            tg.MainButton.hide();
         } else {
             if (viewName !== 'cart') {
                 tg.MainButton.hide();
@@ -496,21 +491,72 @@ function switchShippingMethod() {
     document.getElementById('meestForm').style.display = method === 'meest' ? 'block' : 'none';
 }
 
-// Подстановки для укрпочты без API: индекс -> город и наоборот (ограниченный список)
-function onUpIndexInput() {
-    const idx = document.getElementById('upIndex').value.trim();
-    const hit = ukrposhtaIndexMap.find(item => idx && item.index.startsWith(idx));
-    if (hit) {
-        document.getElementById('upCity').value = hit.city;
+let ukrCitySearchTimeout;
+async function onUpCityInput() {
+    const query = document.getElementById('upCity').value.trim();
+    const cityIdInput = document.getElementById('upCityId');
+    if (cityIdInput) cityIdInput.value = '';
+
+    if (query.length < 2) {
+        const list = document.getElementById('upCityList');
+        if (list) list.innerHTML = '';
+        return;
+    }
+
+    clearTimeout(ukrCitySearchTimeout);
+    ukrCitySearchTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch(`/api/ukrposhta/cities?query=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            ukrCitiesCache = Array.isArray(data) ? data : [];
+
+            const list = document.getElementById('upCityList');
+            if (list) {
+                list.innerHTML = ukrCitiesCache.map(c => `<option value="${c.city_ua || c.city || c.name || ''}">`).join('');
+            }
+
+            // Если точное совпадение — фиксируем id и подтягиваем индексы
+            const match = ukrCitiesCache.find(c => (c.city_ua || c.city || '').toLowerCase() === query.toLowerCase());
+            if (match && cityIdInput) {
+                cityIdInput.value = match.city_id || match.id || '';
+                await fetchUkrIndexes(cityIdInput.value);
+            }
+        } catch (err) {
+            console.error('Ukrposhta city search error:', err);
+        }
+    }, 300);
+}
+
+async function fetchUkrIndexes(cityId) {
+    if (!cityId) return;
+    try {
+        const response = await fetch(`/api/ukrposhta/indexes?city_id=${cityId}`);
+        const data = await response.json();
+        const list = document.getElementById('upIndexList');
+        if (list && Array.isArray(data)) {
+            list.innerHTML = data.map(i => `<option value="${i.postindex || i.post_index || i.index || ''}">${i.city_ua || ''}</option>`).join('');
+        }
+    } catch (err) {
+        console.error('Ukrposhta indexes error:', err);
     }
 }
 
-function onUpCityInput() {
-    const city = document.getElementById('upCity').value.trim().toLowerCase();
-    const list = document.getElementById('upIndexList');
-    if (!list) return;
-    const matches = ukrposhtaIndexMap.filter(item => item.city.toLowerCase().includes(city));
-    list.innerHTML = matches.map(m => `<option value="${m.index}">${m.city}</option>`).join('');
+async function onUpIndexInput() {
+    const idx = document.getElementById('upIndex').value.trim();
+    if (idx.length < 3) return;
+    try {
+        const response = await fetch(`/api/ukrposhta/postoffices?pc=${encodeURIComponent(idx)}`);
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+            const first = data[0];
+            const cityName = first.city_ua || first.city || '';
+            if (cityName) {
+                document.getElementById('upCity').value = cityName;
+            }
+        }
+    } catch (err) {
+        console.error('Ukrposhta postoffices error:', err);
+    }
 }
 
 // Nova Poshta city search
@@ -903,3 +949,41 @@ function showLoading(show) {
 
 // Initialize app
 init();
+
+
+async function loadUserOrders() {
+    if (!userId) return;
+    try {
+        const response = await fetch(`/api/user/orders?telegram_user_id=${userId}`);
+        userOrders = await response.json();
+        renderUserOrders();
+    } catch (error) {
+        console.error('Error loading user orders:', error);
+    }
+}
+
+function renderUserOrders() {
+    const container = document.getElementById('userOrdersList');
+    if (!container) return;
+
+    if (!userOrders || userOrders.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-secondary);">Заказов пока нет</div>';
+        return;
+    }
+
+    container.innerHTML = userOrders.map(order => {
+        const items = (order.items || []).map(i => `${escapeHtml(i.product_name)} x${i.quantity}`).join(', ');
+        const statusText = order.status || 'pending';
+        return `
+        <div class="user-order-card">
+            <div class="meta">
+                <span>#${order.id}</span>
+                <span>${new Date(order.created_at).toLocaleString('ru-RU')}</span>
+            </div>
+            <div class="items">${items || 'Без позиций'}</div>
+            <div style="margin-top:6px; font-weight:600;">${order.total_uah} грн</div>
+            <div style="color: var(--text-secondary); font-size: 14px; margin-top:4px;">Статус: ${statusText}</div>
+        </div>
+        `;
+    }).join('');
+}

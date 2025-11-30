@@ -421,7 +421,7 @@ document.getElementById('bannerImage').addEventListener('change', (e) => {
 
 async function loadOrders() {
     try {
-        const response = await fetch('/api/orders');
+        const response = await fetch('/api/orders', { headers: getAuthHeaders() });
         const orders = await response.json();
 
         const ordersList = document.getElementById('ordersList');
@@ -468,9 +468,23 @@ async function loadOrders() {
             ${shipping}
           </div>
           <div style="text-align:right;">
-            <div class="order-status ${order.status}">${order.status === 'paid' ? '✅ Оплачено' : order.status === 'pending_cod' ? '🚚 Наложенный' : '⏳ Ожидание'}</div>
-            <div style="margin-top: 8px; font-size: 14px; color: var(--text-secondary);">
-              ${order.platform || 'unknown'}
+            <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+              <div class="order-status ${order.status}">${order.status === 'paid' ? '✅ Оплачено' : order.status === 'pending_cod' ? '🚚 Наложенный' : '⏳ Ожидание'}</div>
+              <div style="font-size: 14px; color: var(--text-secondary);">
+                ${order.platform || 'unknown'}
+              </div>
+              <div>
+                <select id="status-${order.id}" style="padding:6px 8px; border-radius:8px; border:1px solid var(--border);">
+                  <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>pending</option>
+                  <option value="paid" ${order.status === 'paid' ? 'selected' : ''}>paid</option>
+                  <option value="pending_cod" ${order.status === 'pending_cod' ? 'selected' : ''}>pending_cod</option>
+                  <option value="shipped" ${order.status === 'shipped' ? 'selected' : ''}>shipped</option>
+                  <option value="delivered" ${order.status === 'delivered' ? 'selected' : ''}>delivered</option>
+                  <option value="canceled" ${order.status === 'canceled' ? 'selected' : ''}>canceled</option>
+                </select>
+                <button class="btn-secondary" style="padding:6px 10px; margin-top:6px;" onclick="updateOrderStatus(${order.id})">Обновить</button>
+              </div>
+              <button class="btn-primary" style="padding:6px 10px;" onclick="messageUser(${order.telegram_user_id || 0})">Написать</button>
             </div>
           </div>
         </div>
@@ -483,6 +497,41 @@ async function loadOrders() {
         }).join('');
     } catch (error) {
         console.error('Error loading orders:', error);
+    }
+}
+
+async function updateOrderStatus(id) {
+    try {
+        const status = document.getElementById(`status-${id}`).value;
+        await fetch(`/api/orders/${id}`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ status })
+        });
+        loadOrders();
+    } catch (error) {
+        console.error('Error updating status:', error);
+        alert('Не удалось обновить статус');
+    }
+}
+
+async function messageUser(telegramId) {
+    if (!telegramId) {
+        alert('Нет telegram_user_id');
+        return;
+    }
+    const text = prompt('Введите сообщение покупателю:');
+    if (!text) return;
+    try {
+        await fetch('/api/admin/message', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ telegram_user_id: telegramId, message: text })
+        });
+        alert('Сообщение отправлено');
+    } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Не удалось отправить сообщение');
     }
 }
 
