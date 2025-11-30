@@ -555,20 +555,22 @@ async function checkoutWithTON() {
             // User cancelled the transaction
             tg.showAlert('Оплата отменена');
         } else if (errorMessage.includes('No enough funds') || errorMessage.includes('insufficient')) {
-            // Insufficient funds - show friendly message with top-up option
+            // Insufficient funds - show friendly message with buy option
             const amountText = totalTonAmount ? totalTonAmount.toFixed(4) : '...';
 
             tg.showPopup({
                 title: '💰 Недостаточно средств',
-                message: `Для оплаты нужно ${amountText} TON.\n\nПополните кошелек и попробуйте снова.`,
+                message: `Для оплаты нужно ${amountText} TON.\n\nПополните кошелек или купите TON.`,
                 buttons: [
-                    { id: 'topup', type: 'default', text: 'Пополнить TON' },
+                    { id: 'buy', type: 'default', text: 'Купить TON' },
                     { id: 'cancel', type: 'cancel', text: 'Отмена' }
                 ]
             }, (buttonId) => {
-                if (buttonId === 'topup') {
-                    // Open TON wallet for top-up
-                    tg.openTelegramLink('https://t.me/wallet');
+                if (buttonId === 'buy') {
+                    // Open Telegram's TON purchase with amount
+                    // This uses Telegram's integrated payment providers
+                    const tonAmount = totalTonAmount || 1;
+                    tg.openTelegramLink(`https://t.me/wallet?start=buy-${tonAmount}`);
                 }
             });
         } else {
