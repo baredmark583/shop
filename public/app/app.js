@@ -493,25 +493,6 @@ async function checkoutWithTON() {
         if (!result.success) {
             throw new Error(result.error || 'Ошибка создания заказа');
         }
-
-        console.log('Order created:', result.order_id);
-
-        // 3. Create TON transaction
-        const amount = Math.floor(result.total_ton * 1000000000); // Convert to nanoTON
-
-        const transaction = {
-            validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
-            messages: [
-                {
-                    address: shopSettings.ton_wallet,
-                    amount: amount.toString(),
-                    payload: btoa(`Order #${result.order_id}`) // Base64 comment
-                }
-            ]
-        };
-
-        console.log('Sending transaction:', transaction);
-
         // 4. Send transaction via TON Connect
         const txResult = await tonConnectUI.sendTransaction(transaction);
 
