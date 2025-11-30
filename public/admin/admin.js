@@ -68,10 +68,17 @@ async function loadSettings() {
         if (response.status === 401) { logout(); return; }
         const settings = await response.json();
 
-        document.getElementById('enableStars').checked = settings.enable_stars;
-        document.getElementById('enableTon').checked = settings.enable_ton;
-        document.getElementById('tonWallet').value = settings.ton_wallet || '';
-        document.getElementById('novaPoshtaKey').value = settings.nova_poshta_api_key || '';
+    document.getElementById('enableStars').checked = settings.enable_stars;
+    document.getElementById('enableTon').checked = settings.enable_ton;
+    document.getElementById('tonWallet').value = settings.ton_wallet || '';
+    document.getElementById('novaPoshtaKey').value = settings.nova_poshta_api_key || '';
+    document.getElementById('iconHome').value = settings.icon_home || '';
+    document.getElementById('iconCart').value = settings.icon_cart || '';
+    document.getElementById('iconProfile').value = settings.icon_profile || '';
+    document.getElementById('iconPay').value = settings.icon_pay || '';
+    document.getElementById('iconNova').value = settings.icon_novaposhta || '';
+    document.getElementById('iconUkr').value = settings.icon_ukrposhta || '';
+    document.getElementById('iconMeest').value = settings.icon_meest || '';
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -84,7 +91,14 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
         enable_stars: document.getElementById('enableStars').checked,
         enable_ton: document.getElementById('enableTon').checked,
         ton_wallet: document.getElementById('tonWallet').value,
-        nova_poshta_api_key: document.getElementById('novaPoshtaKey').value
+        nova_poshta_api_key: document.getElementById('novaPoshtaKey').value,
+        icon_home: document.getElementById('iconHome').value,
+        icon_cart: document.getElementById('iconCart').value,
+        icon_profile: document.getElementById('iconProfile').value,
+        icon_pay: document.getElementById('iconPay').value,
+        icon_novaposhta: document.getElementById('iconNova').value,
+        icon_ukrposhta: document.getElementById('iconUkr').value,
+        icon_meest: document.getElementById('iconMeest').value
     };
 
     try {

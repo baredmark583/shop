@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html lang="ru">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Админ-панель - Управление</title>
+    <title>Админ-панель - Магазин</title>
     <link rel="stylesheet" href="/admin/admin.css">
 </head>
-
 <body>
     <div class="dashboard">
         <header>
-            <h1>🛍️ Управление магазином</h1>
+            <h1>Админ-панель магазина</h1>
             <div class="header-actions">
                 <span id="adminUsername"></span>
                 <button onclick="logout()" class="btn-secondary">Выйти</button>
@@ -19,10 +17,10 @@
         </header>
 
         <nav class="tabs">
-            <button class="tab active" onclick="showTab('products')">📦 Товары</button>
-            <button class="tab" onclick="showTab('banners')">🖼️ Баннеры</button>
-            <button class="tab" onclick="showTab('orders')">🧾 Заказы</button>
-            <button class="tab" onclick="showTab('settings')">⚙️ Настройки</button>
+            <button class="tab active" onclick="showTab('products')">Товары</button>
+            <button class="tab" onclick="showTab('banners')">Баннеры</button>
+            <button class="tab" onclick="showTab('orders')">Заказы</button>
+            <button class="tab" onclick="showTab('settings')">Настройки</button>
         </nav>
 
         <!-- Products Tab -->
@@ -99,7 +97,7 @@
                         </div>
 
                         <div class="form-group">
-                            <label for="bannerSort">Порядок сортировки</label>
+                            <label for="bannerSort">Порядок вывода</label>
                             <input type="number" id="bannerSort" value="0">
                         </div>
 
@@ -127,15 +125,13 @@
                 <h2>Настройки</h2>
             </div>
 
-            <div class="settings-card"
-                style="background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: var(--shadow);">
+            <div class="settings-card" style="background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: var(--shadow);">
                 <form id="settingsForm">
-                    <h3 style="margin-bottom: 20px;">Методы оплаты</h3>
+                    <h3 style="margin-bottom: 20px;">Настройки платежей</h3>
 
                     <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                         <input type="checkbox" id="enableStars" style="width: auto;">
-                        <label for="enableStars" style="margin: 0; cursor: pointer;">Включить оплату Telegram
-                            Stars</label>
+                        <label for="enableStars" style="margin: 0; cursor: pointer;">Включить оплату Telegram Stars</label>
                     </div>
 
                     <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
@@ -144,23 +140,51 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="tonWallet">Адрес TON кошелька (для приема платежей)</label>
+                        <label for="tonWallet">Адрес TON кошелька (для приёма платежей)</label>
                         <input type="text" id="tonWallet" placeholder="UQ..." style="font-family: monospace;">
                         <p style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">
-                            Укажите адрес вашего кошелька (Tonkeeper, Wallet). На него будут приходить средства.
+                            Убедитесь, что это адрес кошелька (Tonkeeper, Wallet). Иначе платеж не будет доставлен.
                         </p>
                     </div>
 
-                    <h3 style="margin: 30px 0 20px 0;">Доставка</h3>
+                    <h3 style="margin: 30px 0 20px 0;">Интеграции</h3>
 
                     <div class="form-group">
                         <label for="novaPoshtaKey">API ключ Новой Почты</label>
-                        <input type="text" id="novaPoshtaKey" placeholder="Введите API ключ"
-                            style="font-family: monospace;">
+                        <input type="text" id="novaPoshtaKey" placeholder="Введите API ключ" style="font-family: monospace;">
                         <p style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;">
-                            Получите ключ на <a href="https://devcenter.novaposhta.ua/" target="_blank"
-                                style="color: var(--primary);">devcenter.novaposhta.ua</a>
+                            Получить ключ можно на <a href="https://devcenter.novaposhta.ua/" target="_blank" style="color: var(--primary);">devcenter.novaposhta.ua</a>
                         </p>
+                    </div>
+
+                    <h3 style="margin: 30px 0 20px 0;">Иконки интерфейса (Iconify SVG URL)</h3>
+                    <div class="form-group">
+                        <label for="iconHome">Главная</label>
+                        <input type="text" id="iconHome" placeholder="https://api.iconify.design/mdi/home.svg?color=%23007aff">
+                    </div>
+                    <div class="form-group">
+                        <label for="iconCart">Корзина</label>
+                        <input type="text" id="iconCart" placeholder="https://api.iconify.design/mdi/cart.svg?color=%23007aff">
+                    </div>
+                    <div class="form-group">
+                        <label for="iconProfile">Профиль</label>
+                        <input type="text" id="iconProfile" placeholder="https://api.iconify.design/mdi/account-circle.svg?color=%23007aff">
+                    </div>
+                    <div class="form-group">
+                        <label for="iconPay">Оплата</label>
+                        <input type="text" id="iconPay" placeholder="https://api.iconify.design/mdi/credit-card-outline.svg?color=%23007aff">
+                    </div>
+                    <div class="form-group">
+                        <label for="iconNova">Новая Почта</label>
+                        <input type="text" id="iconNova" placeholder="https://api.iconify.design/mdi/truck-delivery.svg?color=%23007aff">
+                    </div>
+                    <div class="form-group">
+                        <label for="iconUkr">Укрпочта</label>
+                        <input type="text" id="iconUkr" placeholder="https://api.iconify.design/mdi/mailbox.svg?color=%23007aff">
+                    </div>
+                    <div class="form-group">
+                        <label for="iconMeest">Meest</label>
+                        <input type="text" id="iconMeest" placeholder="https://api.iconify.design/mdi/truck-fast-outline.svg?color=%23007aff">
                     </div>
 
                     <div class="form-actions">
@@ -173,5 +197,4 @@
 
     <script src="/admin/admin.js"></script>
 </body>
-
 </html>

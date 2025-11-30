@@ -16,8 +16,34 @@ let tonConnectUI;
 let shopSettings = {
     enable_stars: true,
     enable_ton: false,
-    ton_wallet: ''
+    ton_wallet: '',
+    icon_home: '',
+    icon_cart: '',
+    icon_profile: '',
+    icon_pay: '',
+    icon_novaposhta: '',
+    icon_ukrposhta: '',
+    icon_meest: ''
 };
+const defaultIcons = {
+    home: 'https://api.iconify.design/mdi/home.svg?color=%23007aff',
+    cart: 'https://api.iconify.design/mdi/cart.svg?color=%23007aff',
+    profile: 'https://api.iconify.design/mdi/account-circle.svg?color=%23007aff',
+    pay: 'https://api.iconify.design/mdi/credit-card-outline.svg?color=%23007aff',
+    nova: 'https://api.iconify.design/mdi/truck-delivery.svg?color=%23007aff',
+    ukr: 'https://api.iconify.design/mdi/mailbox.svg?color=%23007aff',
+    meest: 'https://api.iconify.design/mdi/truck-fast-outline.svg?color=%23007aff',
+    cod: 'https://api.iconify.design/mdi/cash.svg?color=%23007aff'
+};
+
+// Простейшие соответствия индексов и городов (локально, без API)
+const ukrposhtaIndexMap = [
+    { index: '01001', city: 'Киев' },
+    { index: '79000', city: 'Львов' },
+    { index: '49000', city: 'Днепр' },
+    { index: '65000', city: 'Одесса' },
+    { index: '73000', city: 'Херсон' }
+];
 
 // Load settings from server
 async function loadSettings() {
@@ -44,6 +70,8 @@ async function init() {
 
     // Load settings
     await loadSettings();
+    applyIcons();
+    initUkrposhtaSuggestions();
 
     // Initialize TON Connect
     tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
@@ -78,6 +106,43 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function getIconUrl(key, fallback) {
+    return shopSettings[key] && shopSettings[key].trim() !== '' ? shopSettings[key] : fallback;
+}
+
+function applyIcons() {
+    const homeIcon = document.getElementById('iconHomeNav');
+    const cartIcon = document.getElementById('iconCartNav');
+    const profileIcon = document.getElementById('iconProfileNav');
+    const payButtonIcon = document.getElementById('payIconButton');
+    const payInlineIcon = document.getElementById('payIconInline');
+    const codInlineIcon = document.getElementById('codIconInline');
+    const novaIcon = document.getElementById('iconNovaShip');
+    const ukrIcon = document.getElementById('iconUkrShip');
+    const meestIcon = document.getElementById('iconMeestShip');
+
+    if (homeIcon) homeIcon.src = getIconUrl('icon_home', defaultIcons.home);
+    if (cartIcon) cartIcon.src = getIconUrl('icon_cart', defaultIcons.cart);
+    if (profileIcon) profileIcon.src = getIconUrl('icon_profile', defaultIcons.profile);
+    if (payButtonIcon) payButtonIcon.src = getIconUrl('icon_pay', defaultIcons.pay);
+    if (payInlineIcon) payInlineIcon.src = getIconUrl('icon_pay', defaultIcons.pay);
+    if (codInlineIcon) codInlineIcon.src = defaultIcons.cod;
+    if (novaIcon) novaIcon.src = getIconUrl('icon_novaposhta', defaultIcons.nova);
+    if (ukrIcon) ukrIcon.src = getIconUrl('icon_ukrposhta', defaultIcons.ukr);
+    if (meestIcon) meestIcon.src = getIconUrl('icon_meest', defaultIcons.meest);
+}
+
+function initUkrposhtaSuggestions() {
+    const cityList = document.getElementById('upCityList');
+    if (cityList) {
+        cityList.innerHTML = ukrposhtaIndexMap.map(item => `<option value="${item.city}">`).join('');
+    }
+    const idxList = document.getElementById('upIndexList');
+    if (idxList) {
+        idxList.innerHTML = ukrposhtaIndexMap.map(item => `<option value="${item.index}">${item.city}</option>`).join('');
+    }
 }
 
 // Get platform for pricing
@@ -429,6 +494,23 @@ function switchShippingMethod() {
     document.getElementById('meestForm').style.display = method === 'meest' ? 'block' : 'none';
 }
 
+// Подстановки для укрпочты без API: индекс -> город и наоборот (ограниченный список)
+function onUpIndexInput() {
+    const idx = document.getElementById('upIndex').value.trim();
+    const hit = ukrposhtaIndexMap.find(item => idx && item.index.startsWith(idx));
+    if (hit) {
+        document.getElementById('upCity').value = hit.city;
+    }
+}
+
+function onUpCityInput() {
+    const city = document.getElementById('upCity').value.trim().toLowerCase();
+    const list = document.getElementById('upIndexList');
+    if (!list) return;
+    const matches = ukrposhtaIndexMap.filter(item => item.city.toLowerCase().includes(city));
+    list.innerHTML = matches.map(m => `<option value="${m.index}">${m.city}</option>`).join('');
+}
+
 // Nova Poshta city search
 let npCitySearchTimeout;
 async function searchNPCities() {
@@ -577,25 +659,61 @@ async function proceedToPayment() {
     }
 
     // Now proceed with payment
-    await processPayment(shippingData);
+    const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || 'online';
+    await processPayment(shippingData, paymentMethod);
 }
 
-async function processPayment(shippingData) {
+async function processPayment(shippingData, paymentMethod) {
     try {
         showLoading(true);
 
         // Determine payment method based on settings
-        let payment_method = 'stars'; // default
+        let payment_method = paymentMethod === 'cod' ? 'cod' : 'stars'; // default online
 
-        if (shopSettings.enable_ton && !shopSettings.enable_stars) {
-            payment_method = 'ton';
-        } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
-            payment_method = 'ton';
+        if (payment_method !== 'cod') {
+            if (shopSettings.enable_ton && !shopSettings.enable_stars) {
+                payment_method = 'ton';
+            } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
+                payment_method = 'ton';
+            }
         }
 
         // For TON - use TON Connect
         if (payment_method === 'ton') {
             await checkoutWithTON(shippingData.method, JSON.stringify(shippingData));
+            return;
+        }
+
+        // Для наложенного платежа: создаём заказ и завершаем без инвойса
+        if (payment_method === 'cod') {
+            const orderData = {
+                telegram_user_id: userId,
+                items: cart.map(item => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity
+                })),
+                platform: getPlatform(),
+                payment_method: 'cod',
+                shipping_method: shippingData.method,
+                shipping_address: JSON.stringify(shippingData)
+            };
+
+            const response = await fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(orderData)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                cart = [];
+                saveCart();
+                updateCartCount();
+                tg.showAlert(`Заказ оформлен. Оплата при получении. Номер заказа: ${result.order_id}`);
+                showView('main');
+            } else {
+                tg.showAlert('Ошибка оформления заказа: ' + (result.error || 'неизвестная ошибка'));
+            }
             return;
         }
 

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ru">
 
 <head>
@@ -66,6 +66,25 @@
                         <option value="meest">Meest</option>
                     </select>
                 </div>
+                <div class="shipping-icons">
+                    <span><img id="iconNovaShip" class="icon-img" alt=""> Новая Почта</span>
+                    <span><img id="iconUkrShip" class="icon-img" alt=""> Укрпочта</span>
+                    <span><img id="iconMeestShip" class="icon-img" alt=""> Meest</span>
+                </div>
+
+                <div class="form-group">
+                    <label>Способ оплаты</label>
+                    <div class="payment-options">
+                        <label>
+                            <input type="radio" name="paymentMethod" value="online" checked>
+                            <span class="payment-text"><span class="icon-inline"><img id="payIconInline" alt=""></span> Онлайн (Stars/TON)</span>
+                        </label>
+                        <label>
+                            <input type="radio" name="paymentMethod" value="cod">
+                            <span class="payment-text"><span class="icon-inline"><img id="codIconInline" alt=""></span> Оплата при получении</span>
+                        </label>
+                    </div>
+                </div>
 
                 <!-- Nova Poshta Form -->
                 <div id="novaposhtaForm" class="shipping-method-form">
@@ -99,11 +118,13 @@
                 <div id="ukrposhtaForm" class="shipping-method-form" style="display: none;">
                     <div class="form-group">
                         <label for="upCity">Город</label>
-                        <input type="text" id="upCity" placeholder="Город">
+                        <input type="text" id="upCity" placeholder="Город" list="upCityList" oninput="onUpCityInput()">
+                        <datalist id="upCityList"></datalist>
                     </div>
                     <div class="form-group">
                         <label for="upIndex">Индекс</label>
-                        <input type="text" id="upIndex" placeholder="01001">
+                        <input type="text" id="upIndex" placeholder="01001" oninput="onUpIndexInput()" list="upIndexList">
+                        <datalist id="upIndexList"></datalist>
                     </div>
                     <div class="form-group">
                         <label for="upAddress">Улица и дом</label>
@@ -151,8 +172,9 @@
                     </div>
                 </div>
 
-                <button onclick="proceedToPayment()" class="btn-primary" style="width: 100%; margin-top: 20px;">
-                    Перейти к оплате
+                <button onclick="proceedToPayment()" class="btn-primary" style="width: 100%; margin-top: 20px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <img id="payIconButton" class="icon-img" alt="">
+                    <span>Перейти к оплате</span>
                 </button>
                 <button onclick="showView('cart')" class="btn-secondary" style="width: 100%; margin-top: 10px;">
                     Назад к корзине
@@ -202,16 +224,16 @@
         <!-- Bottom Navigation -->
         <nav class="bottom-nav">
             <button class="nav-item active" onclick="showView('main')" data-view="main">
-                <iconify-icon icon="mdi:home"></iconify-icon>
+                <img id="iconHomeNav" class="nav-icon-img" alt="">
                 <span>Главная</span>
             </button>
             <button class="nav-item" onclick="showView('cart')" data-view="cart">
-                <iconify-icon icon="mdi:cart"></iconify-icon>
+                <img id="iconCartNav" class="nav-icon-img" alt="">
                 <span>Корзина</span>
                 <div id="navCartBadge" class="nav-badge" style="display: none;">0</div>
             </button>
             <button class="nav-item" onclick="showView('profile')" data-view="profile">
-                <iconify-icon icon="mdi:account"></iconify-icon>
+                <img id="iconProfileNav" class="nav-icon-img" alt="">
                 <span>Профиль</span>
             </button>
         </nav>

@@ -319,7 +319,6 @@ app.post('/api/orders', async (req, res) => {
             items: enrichedItems
         };
 
-        // Create order in DB
         const order = await db.createOrder(
             telegram_user_id,
             null, // username
@@ -340,6 +339,11 @@ app.post('/api/orders', async (req, res) => {
         if (payment_method === 'stars' || !payment_method) {
             // Use createInvoiceLink instead of createInvoice
             invoice_link = await createInvoiceLink(orderData, platform || 'mobile');
+        }
+
+        // Mark наложенный платеж отдельным статусом
+        if (payment_method === 'cod') {
+            await db.updateOrder(order.id, null, 'pending_cod');
         }
 
         res.json({

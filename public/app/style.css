@@ -436,8 +436,10 @@ header h1 {
     position: relative;
 }
 
-.nav-item iconify-icon {
-    font-size: 24px;
+.nav-icon-img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
 }
 
 .nav-item.active {
@@ -799,6 +801,13 @@ button,
     -webkit-tap-highlight-color: transparent;
 }
 
+.icon-img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    display: inline-block;
+}
+
 /* ==================== SHIPPING FORM STYLES ==================== */
 
 .shipping-content {
@@ -898,6 +907,25 @@ button,
     animation: fadeIn 0.3s ease;
 }
 
+.shipping-icons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 8px;
+}
+
+.shipping-icons span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--background);
+    padding: 6px 10px;
+    border-radius: 10px;
+}
+
 /* Button Styles */
 .btn-primary,
 .btn-secondary {
@@ -939,6 +967,33 @@ button,
 
 .btn-secondary:active {
     transform: scale(0.98);
+}
+
+/* Payment choice */
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.payment-options label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--background);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+
+.payment-options input[type="radio"] {
+    width: auto;
+}
+
+.payment-text .icon-inline {
+    display: inline-flex;
+    align-items: center;
+    margin-right: 6px;
 }
 
 /* Улучшенная корзина */

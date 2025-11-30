@@ -65,7 +65,15 @@ async function initDatabase() {
       const defaultSettings = {
         enable_stars: true,
         enable_ton: false,
-        ton_wallet: 'UQARnCdfRw0VcT86ApqHJEdMGzQU3T_MnPbNs71A6nOXcF91'
+        ton_wallet: 'UQARnCdfRw0VcT86ApqHJEdMGzQU3T_MnPbNs71A6nOXcF91',
+        // Иконки интерфейса (iconify SVG ссылки)
+        icon_home: 'https://api.iconify.design/mdi/home.svg?color=%23007aff',
+        icon_cart: 'https://api.iconify.design/mdi/cart.svg?color=%23007aff',
+        icon_profile: 'https://api.iconify.design/mdi/account-circle.svg?color=%23007aff',
+        icon_pay: 'https://api.iconify.design/mdi/credit-card-outline.svg?color=%23007aff',
+        icon_novaposhta: 'https://api.iconify.design/mdi/truck-delivery.svg?color=%23007aff',
+        icon_ukrposhta: 'https://api.iconify.design/mdi/mailbox.svg?color=%23007aff',
+        icon_meest: 'https://api.iconify.design/mdi/truck-fast-outline.svg?color=%23007aff'
       };
       await client.query('INSERT INTO settings (key, value) VALUES ($1, $2)', ['shop_settings', JSON.stringify(defaultSettings)]);
     }
