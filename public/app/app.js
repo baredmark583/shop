@@ -401,7 +401,7 @@ function displayCart() {
     tg.MainButton.show();
 }
 
-// Checkout
+// Checkout - now shows shipping form
 async function checkout() {
     if (!userId) {
         tg.showAlert('Ошибка: не удалось получить ID пользователя');
@@ -413,39 +413,172 @@ async function checkout() {
         return;
     }
 
-    // First, collect shipping information
-    const shippingMethod = await new Promise((resolve) => {
-        tg.showPopup({
-            title: '📦 Способ доставки',
-            message: 'Выберите способ доставки:',
-            buttons: [
-                { id: 'novaposhta', type: 'default', text: 'Нова Пошта' },
-                { id: 'ukrposhta', type: 'default', text: 'Укрпошта' },
-                { id: 'meest', type: 'default', text: 'Мист Экспресс' }
-            ]
-        }, (buttonId) => resolve(buttonId));
-    });
+    // Show shipping form
+    showView('shipping');
+    tg.MainButton.hide();
+}
 
-    if (!shippingMethod) {
-        return; // User cancelled
-    }
+// Switch between shipping methods
+function switchShippingMethod() {
+    const method = document.getElementById('shippingMethodSelect').value;
 
-    let shippingAddress = '';
+    document.getElementById('novaposhtaForm').style.display = method === 'novaposhta' ? 'block' : 'none';
+    document.getElementById('ukrposhtaForm').style.display = method === 'ukrposhta' ? 'block' : 'none';
+    document.getElementById('meestForm').style.display = method === 'meest' ? 'block' : 'none';
+}
 
-    // For simplicity, use prompt for address (in production, use proper forms)
-    if (shippingMethod === 'novaposhta') {
-        shippingAddress = prompt('Введіть місто та номер відділення Нової Пошти\n(напр: Київ, Відділення №5)');
-    } else if (shippingMethod === 'ukrposhta') {
-        shippingAddress = prompt('Введіть адресу доставки Укрпошти:');
-    } else if (shippingMethod === 'meest') {
-        shippingAddress = prompt('Введіть адресу доставки Мист Експрес:');
-    }
+// Nova Poshta city search
+let npCitySearchTimeout;
+async function searchNPCities() {
+    const query = document.getElementById('npCity').value;
 
-    if (!shippingAddress) {
-        tg.showAlert('Адреса доставки обов\'язкова');
+    if (query.length < 2) {
+        document.getElementById('npCitiesList').style.display = 'none';
         return;
     }
 
+    clearTimeout(npCitySearchTimeout);
+    npCitySearchTimeout = setTimeout(async () => {
+        try {
+            const response = await fetch('/api/novaposhta/cities', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+
+            const cities = await response.json();
+            displayNPCities(cities);
+        } catch (error) {
+            console.error('City search error:', error);
+        }
+    }, 300);
+}
+
+function displayNPCities(cities) {
+    const list = document.getElementById('npCitiesList');
+
+    if (!cities || cities.length === 0) {
+        list.style.display = 'none';
+        return;
+    }
+
+    list.innerHTML = cities.map(city => `
+        <div class="autocomplete-item" onclick="selectNPCity('${city.ref}', '${city.name.replace(/'/g, "\\'")}')">
+            ${city.name}
+        </div>
+    `).join('');
+
+    list.style.display = 'block';
+}
+
+async function selectNPCity(ref, name) {
+    document.getElementById('npCity').value = name;
+    document.getElementById('npCityRef').value = ref;
+    document.getElementById('npCitiesList').style.display = 'none';
+
+    // Load warehouses for selected city
+    await loadNPWarehouses(ref);
+}
+
+async function loadNPWarehouses(cityRef) {
+    const warehouseSelect = document.getElementById('npWarehouse');
+    warehouseSelect.disabled = true;
+    warehouseSelect.innerHTML = '<option>Завантаження...</option>';
+
+    try {
+        const response = await fetch('/api/novaposhta/warehouses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cityRef })
+        });
+
+        const warehouses = await response.json();
+
+        warehouseSelect.innerHTML = warehouses.map(w => `
+            <option value="${w.ref}">${w.name}</option>
+        `).join('');
+
+        warehouseSelect.disabled = false;
+    } catch (error) {
+        console.error('Warehouse load error:', error);
+        warehouseSelect.innerHTML = '<option>Помилка завантаження</option>';
+    }
+}
+
+// Proceed to payment with shipping data
+async function proceedToPayment() {
+    const method = document.getElementById('shippingMethodSelect').value;
+    let shippingData = {};
+
+    // Validate and collect data based on method
+    if (method === 'novaposhta') {
+        const city = document.getElementById('npCity').value;
+        const cityRef = document.getElementById('npCityRef').value;
+        const warehouse = document.getElementById('npWarehouse').value;
+        const firstName = document.getElementById('npFirstName').value;
+        const lastName = document.getElementById('npLastName').value;
+        const phone = document.getElementById('npPhone').value;
+
+        if (!city || !cityRef || !warehouse || !firstName || !lastName || !phone) {
+            tg.showAlert('Заповніть всі поля');
+            return;
+        }
+
+        const warehouseName = document.getElementById('npWarehouse').options[document.getElementById('npWarehouse').selectedIndex].text;
+
+        shippingData = {
+            method: 'novaposhta',
+            address: `${city}, ${warehouseName}`,
+            recipient: `${firstName} ${lastName}`,
+            phone: phone,
+            cityRef: cityRef,
+            warehouseRef: warehouse
+        };
+    } else if (method === 'ukrposhta') {
+        const city = document.getElementById('upCity').value;
+        const index = document.getElementById('upIndex').value;
+        const address = document.getElementById('upAddress').value;
+        const firstName = document.getElementById('upFirstName').value;
+        const lastName = document.getElementById('upLastName').value;
+        const phone = document.getElementById('upPhone').value;
+
+        if (!city || !index || !address || !firstName || !lastName || !phone) {
+            tg.showAlert('Заповніть всі поля');
+            return;
+        }
+
+        shippingData = {
+            method: 'ukrposhta',
+            address: `${index}, ${city}, ${address}`,
+            recipient: `${firstName} ${lastName}`,
+            phone: phone
+        };
+    } else if (method === 'meest') {
+        const city = document.getElementById('meestCity').value;
+        const index = document.getElementById('meestIndex').value;
+        const address = document.getElementById('meestAddress').value;
+        const firstName = document.getElementById('meestFirstName').value;
+        const lastName = document.getElementById('meestLastName').value;
+        const phone = document.getElementById('meestPhone').value;
+
+        if (!city || !index || !address || !firstName || !lastName || !phone) {
+            tg.showAlert('Заповніть всі поля');
+            return;
+        }
+
+        shippingData = {
+            method: 'meest',
+            address: `${index}, ${city}, ${address}`,
+            recipient: `${firstName} ${lastName}`,
+            phone: phone
+        };
+    }
+
+    // Now proceed with payment
+    await processPayment(shippingData);
+}
+
+async function processPayment(shippingData) {
     try {
         showLoading(true);
 
@@ -460,7 +593,7 @@ async function checkout() {
 
         // For TON - use TON Connect
         if (payment_method === 'ton') {
-            await checkoutWithTON(shippingMethod, shippingAddress);
+            await checkoutWithTON(shippingData.method, JSON.stringify(shippingData));
             return;
         }
 
@@ -473,8 +606,8 @@ async function checkout() {
             })),
             platform: getPlatform(),
             payment_method: 'stars',
-            shipping_method: shippingMethod,
-            shipping_address: shippingAddress
+            shipping_method: shippingData.method,
+            shipping_address: JSON.stringify(shippingData)
         };
 
         const response = await fetch('/api/orders', {
