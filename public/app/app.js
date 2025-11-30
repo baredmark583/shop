@@ -408,13 +408,18 @@ async function checkout() {
         let payment_method = 'stars'; // default
 
         if (shopSettings.enable_ton && !shopSettings.enable_stars) {
-            // Only TON enabled
             payment_method = 'ton';
         } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
-            // Both enabled - let user choose (for now default to TON if both enabled)
             payment_method = 'ton';
         }
 
+        // For TON - use TON Connect
+        if (payment_method === 'ton') {
+            await checkoutWithTON();
+            return;
+        }
+
+        // For Stars - existing logic
         const orderData = {
             telegram_user_id: userId,
             items: cart.map(item => ({
@@ -422,7 +427,7 @@ async function checkout() {
                 quantity: item.quantity
             })),
             platform: getPlatform(),
-            payment_method: payment_method
+            payment_method: 'stars'
         };
 
         const response = await fetch('/api/orders', {
@@ -434,22 +439,12 @@ async function checkout() {
         const result = await response.json();
 
         if (result.success) {
-            // Clear cart
             cart = [];
             saveCart();
             updateCartCount();
 
-            // Show appropriate success message based on payment method
-            let message = '';
-            if (payment_method === 'ton') {
-                message = `Пожалуйста, отправьте ${result.total_ton.toFixed(4)} TON на адрес:\n${shopSettings.ton_wallet}\n\nСумма: ${result.total_uah} грн`;
-                tg.showAlert(message);
-            } else {
-                message = `Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`;
-                tg.showAlert(message);
-            }
+            tg.showAlert(`Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`);
 
-            // Return to main view
             showView('main');
         } else {
             tg.showAlert('Ошибка создания заказа: ' + (result.error || 'Неизвестная ошибка'));
@@ -457,6 +452,97 @@ async function checkout() {
     } catch (error) {
         console.error('Checkout error:', error);
         tg.showAlert('Ошибка при оформлении заказа');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// TON Connect payment flow
+async function checkoutWithTON() {
+    try {
+        // 1. Check wallet connection
+        if (!tonConnectUI.connected) {
+            tg.showAlert('Пожалуйста, подключите TON кошелек в разделе "Профиль"');
+            showLoading(false);
+            showView('profile');
+            return;
+        }
+
+        const walletAddress = tonConnectUI.account.address;
+        console.log('Wallet connected:', walletAddress);
+
+        // 2. Create order on server
+        const orderData = {
+            telegram_user_id: userId,
+            items: cart.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+            })),
+            platform: getPlatform(),
+            payment_method: 'ton'
+        };
+
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Ошибка создания заказа');
+        }
+
+        console.log('Order created:', result.order_id);
+
+        // 3. Create TON transaction
+        const amount = Math.floor(result.total_ton * 1000000000); // Convert to nanoTON
+
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 600, // 10 minutes
+            messages: [
+                {
+                    address: shopSettings.ton_wallet,
+                    amount: amount.toString(),
+                    payload: btoa(`Order #${result.order_id}`) // Base64 comment
+                }
+            ]
+        };
+
+        console.log('Sending transaction:', transaction);
+
+        // 4. Send transaction via TON Connect
+        const txResult = await tonConnectUI.sendTransaction(transaction);
+
+        console.log('Transaction sent:', txResult);
+
+        // 5. Update order with transaction hash
+        await fetch(`/api/orders/${result.order_id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transaction_hash: txResult.boc,
+                status: 'pending_confirmation'
+            })
+        });
+
+        // 6. Clear cart and show success
+        cart = [];
+        saveCart();
+        updateCartCount();
+
+        tg.showAlert(`✅ Транзакция отправлена!\n\nСумма: ${result.total_ton.toFixed(4)} TON\nЗаказ #${result.order_id}\n\nЗаказ будет обработан после подтверждения в сети.`);
+        showView('main');
+
+    } catch (error) {
+        console.error('TON payment error:', error);
+
+        if (error.message && error.message.includes('reject')) {
+            tg.showAlert('Оплата отменена');
+        } else {
+            tg.showAlert('Ошибка при оплате TON: ' + (error.message || 'Неизвестная ошибка'));
+        }
     } finally {
         showLoading(false);
     }

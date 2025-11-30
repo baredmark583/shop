@@ -254,6 +254,20 @@ app.get('/api/orders', async (req, res) => {
     }
 });
 
+// Update order with transaction hash (for TON payments)
+app.patch('/api/orders/:id', async (req, res) => {
+    try {
+        const { transaction_hash, status } = req.body;
+
+        await db.updateOrder(req.params.id, transaction_hash, status);
+
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error updating order:', error);
+        res.status(500).json({ error: 'Failed to update order' });
+    }
+});
+
 // Admin login
 app.post('/api/admin/login', async (req, res) => {
     try {

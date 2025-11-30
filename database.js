@@ -273,6 +273,14 @@ const db = {
       [JSON.stringify(settings), 'shop_settings']
     );
     return result.rows[0] ? JSON.parse(result.rows[0].value) : null;
+  },
+
+  // Update order with transaction details
+  async updateOrder(orderId, transactionHash, status) {
+    await pool.query(
+      'UPDATE orders SET transaction_hash = $1, status = $2 WHERE id = $3',
+      [transactionHash, status, orderId]
+    );
   }
 };
 
