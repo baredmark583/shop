@@ -133,7 +133,7 @@ async function loadProducts() {
         ${product.image_url ?
                     `<img src="${escapeHtml(product.image_url)}" class="product-image" alt="${escapeHtml(product.name)}">` :
                     `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
-            <span style="font-size: 48px;">📦</span>
+            <iconify-icon icon="mdi:package-variant" style="font-size: 64px; color: var(--text-secondary);"></iconify-icon>
           </div>`
                 }
         <div class="product-info">
@@ -372,7 +372,7 @@ function displayCart() {
       ${item.image_url ?
             `<img src="${escapeHtml(item.image_url)}" class="cart-item-image" alt="${escapeHtml(item.name)}">` :
             `<div class="cart-item-image" style="display: flex; align-items: center; justify-content: center;">
-          <span style="font-size: 32px;">📦</span>
+          <iconify-icon icon="mdi:package-variant" style="font-size: 48px; color: var(--text-secondary);"></iconify-icon>
         </div>`
         }
       <div class="cart-item-info">
@@ -382,7 +382,9 @@ function displayCart() {
           <button class="btn-quantity" onclick="updateQuantity(${item.product_id}, -1)">−</button>
           <span class="item-quantity">${item.quantity}</span>
           <button class="btn-quantity" onclick="updateQuantity(${item.product_id}, 1)">+</button>
-          <button class="btn-remove" onclick="removeFromCart(${item.product_id})">🗑️</button>
+          <button class="btn-remove" onclick="removeFromCart(${item.product_id})">
+            <iconify-icon icon="mdi:delete" style="font-size: 20px;"></iconify-icon>
+          </button>
         </div>
       </div>
     </div>
