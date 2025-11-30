@@ -80,70 +80,62 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Load banners
-async function loadBanners() {
-    try {
-        const response = await fetch('/api/banners');
-        const banners = await response.json();
+// Get platform for pricing
+function getPlatform() {
+    return platform || 'mobile';
+}
 
-        const bannersSlider = document.getElementById('bannersSlider');
-        if (!bannersSlider) return;
-
-        if (banners.length === 0) {
-            bannersSlider.style.display = 'none';
-            return;
-        }
-
-        bannersSlider.innerHTML = banners.map(banner => `
-            <div class="banner-slide">
-                <img src="${banner.image_url}" alt="Banner" onclick="${banner.link_url ? `window.open('${banner.link_url}', '_blank')` : ''}">
-            </div>
-        `).join('');
-        bannersSlider.style.display = 'flex';
-    } catch (error) {
-        console.error('Error loading banners:', error);
+// Stars conversion with platform-specific rates
+function getStarRate() {
+    const platformName = (tg.platform || 'unknown').toLowerCase();
+    // Mobile (iOS/Android) - expensive packages (~0.99 UAH/Star)
+    if (platformName === 'ios' || platformName === 'android' || platformName === 'weba') {
+        return 0.99;
     }
+    // Desktop/Web - cheaper packages (~0.84 UAH/Star)
+    return 0.84;
+}
+
+function smartRoundStars(stars) {
+    const integerStars = Math.round(stars);
+    const remainder = integerStars % 100;
+
+    if (remainder < 90) {
+        return integerStars - remainder; // Round down to nearest 100
+    } else {
+        return integerStars + (100 - remainder); // Round up to nearest 100
+    }
+}
+
+function convertToStars(uah) {
+    const rate = getStarRate();
+    const rawStars = uah / rate;
+    return smartRoundStars(rawStars);
 }
 
 // Load products
 async function loadProducts() {
     try {
-        showLoading(true);
         const response = await fetch('/api/products');
         products = await response.json();
-        displayProducts();
-    } catch (error) {
-        console.error('Error loading products:', error);
-        tg.showAlert('Ошибка загрузки товаров');
-    } finally {
-        showLoading(false);
-    }
-}
 
-// Display products
-function displayProducts() {
-    const productsList = document.getElementById('productsList');
-    if (!productsList) return;
+        const productsList = document.getElementById('productsList');
+        if (!productsList) return;
 
-    if (products.length === 0) {
-        productsList.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
-        <div style="font-size: 64px; margin-bottom: 20px;">📦</div>
-        <p>Товаров пока нет</p>
-      </div>
-    `;
-        return;
-    }
+        if (products.length === 0) {
+            productsList.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">Товаров пока нет</p>';
+            return;
+        }
 
-    productsList.innerHTML = products.map(product => {
-        return `
+        productsList.innerHTML = products.map(product => {
+            return `
       <div class="product-card" onclick="openProductModal(${product.id})">
         ${product.image_url ?
-                `<img src="${escapeHtml(product.image_url)}" class="product-image" alt="${escapeHtml(product.name)}">` :
-                `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
+                    `<img src="${escapeHtml(product.image_url)}" class="product-image" alt="${escapeHtml(product.name)}">` :
+                    `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
             <span style="font-size: 48px;">📦</span>
           </div>`
-            }
+                }
         <div class="product-info">
           <div class="product-name">${escapeHtml(product.name)}</div>
           ${product.description ? `<div class="product-description">${escapeHtml(product.description)}</div>` : ''}
@@ -158,71 +150,67 @@ function displayProducts() {
         </div>
       </div>
     `;
-    }).join('');
-}
-
-// Helper: Get platform-specific Star rate (UAH per 1 Star)
-function getStarRate() {
-    const platformName = (tg.platform || 'unknown').toLowerCase();
-    // Mobile (iOS/Android) - expensive packages (~0.99 UAH/Star)
-    if (platformName === 'ios' || platformName === 'android' || platformName === 'weba') {
-        return 0.99;
-    }
-    // Desktop/Web - cheaper packages (~0.84 UAH/Star)
-    return 0.84;
-}
-
-// Helper: Smart round stars amount
-// User logic: 2510->2500, 2580->2500, 2590->2600
-// Interpretation: Round to nearest 100. If remainder < 90, round down. If >= 90, round up.
-function smartRoundStars(stars) {
-    const integerStars = Math.round(stars);
-    const remainder = integerStars % 100;
-
-    if (remainder < 90) {
-        return integerStars - remainder; // Round down to nearest 100
-    } else {
-        return integerStars + (100 - remainder); // Round up to nearest 100
+        }).join('');
+    } catch (error) {
+        console.error('Error loading products:', error);
     }
 }
 
-function convertToStars(uahAmount) {
-    if (!shopSettings.enable_stars) return 0;
-    const rate = getStarRate();
-    const rawStars = uahAmount / rate;
-    return smartRoundStars(rawStars);
-}
+// Load banners
+async function loadBanners() {
+    try {
+        const response = await fetch('/api/banners');
+        const banners = await response.json();
 
-// Get platform type
-function getPlatform() {
-    if (platform.includes('android') || platform.includes('ios')) {
-        return 'mobile';
+        const bannersContainer = document.getElementById('bannersContainer');
+        if (!bannersContainer) return;
+
+        const bannersCarousel = document.getElementById('bannersCarousel');
+
+        if (banners.length === 0) {
+            bannersContainer.style.display = 'none';
+            return;
+        }
+
+        bannersContainer.style.display = 'block';
+        bannersCarousel.innerHTML = banners.map(banner => `
+      <div class="banner-item" ${banner.link_url ? `onclick="window.open('${escapeHtml(banner.link_url)}', '_blank')"` : ''}>
+        <img src="${escapeHtml(banner.image_url)}" alt="Banner">
+      </div>
+    `).join('');
+    } catch (error) {
+        console.error('Error loading banners:', error);
     }
-    return 'desktop';
 }
 
-// View Navigation
+// View navigation
 function showView(viewName) {
-    // Hide all views
-    document.getElementById('mainView').style.display = 'none';
-    document.getElementById('cartView').style.display = 'none';
-    document.getElementById('profileView').style.display = 'none';
+    const views = document.querySelectorAll('.view');
+    views.forEach(view => view.style.display = 'none');
 
-    // Show selected view
-    if (viewName === 'main') {
-        document.getElementById('mainView').style.display = 'block';
-    } else if (viewName === 'cart') {
-        displayCart();
-        document.getElementById('cartView').style.display = 'block';
-    } else if (viewName === 'profile') {
-        document.getElementById('profileView').style.display = 'block';
+    const targetView = document.getElementById(`${viewName}View`);
+    if (targetView) {
+        targetView.style.display = 'block';
+
+        // Display cart when switching to cart view
+        if (viewName === 'cart') {
+            displayCart();
+            if (cart.length > 0) {
+                tg.MainButton.show();
+            }
+        } else {
+            if (viewName !== 'cart') {
+                tg.MainButton.hide();
+            }
+        }
     }
 
-    // Update navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-        if (item.dataset.view === viewName) {
-            item.classList.add('active');
+    // Update nav active state
+    const navButtons = document.querySelectorAll('.nav-item');
+    navButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.getAttribute('onclick').includes(viewName)) {
+            btn.classList.add('active');
         }
     });
 
@@ -420,115 +408,236 @@ async function checkout() {
         return;
     }
 
-    tg.showAlert('Пожалуйста, подключите TON кошелек в разделе "Профиль"');
-    showLoading(false);
-    showView('profile');
-    return;
-}
+    if (cart.length === 0) {
+        tg.showAlert('Корзина пуста');
+        return;
+    }
 
-const walletAddress = tonConnectUI.account.address;
-console.log('Wallet connected:', walletAddress);
+    // First, collect shipping information
+    const shippingMethod = await new Promise((resolve) => {
+        tg.showPopup({
+            title: '📦 Способ доставки',
+            message: 'Выберите способ доставки:',
+            buttons: [
+                { id: 'novaposhta', type: 'default', text: 'Нова Пошта' },
+                { id: 'ukrposhta', type: 'default', text: 'Укрпошта' },
+                { id: 'meest', type: 'default', text: 'Мист Экспресс' }
+            ]
+        }, (buttonId) => resolve(buttonId));
+    });
 
-// 2. Create order on server
-const orderData = {
-    telegram_user_id: userId,
-    items: cart.map(item => ({
-        product_id: item.product_id,
-        quantity: item.quantity
-    })),
-    platform: getPlatform(),
-    payment_method: 'ton',
-    shipping_method: shippingMethod,
-    shipping_address: shippingAddress
-};
+    if (!shippingMethod) {
+        return; // User cancelled
+    }
 
-const response = await fetch('/api/orders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(orderData)
-});
+    let shippingAddress = '';
 
-const result = await response.json();
+    // For simplicity, use prompt for address (in production, use proper forms)
+    if (shippingMethod === 'novaposhta') {
+        shippingAddress = prompt('Введіть місто та номер відділення Нової Пошти\n(напр: Київ, Відділення №5)');
+    } else if (shippingMethod === 'ukrposhta') {
+        shippingAddress = prompt('Введіть адресу доставки Укрпошти:');
+    } else if (shippingMethod === 'meest') {
+        shippingAddress = prompt('Введіть адресу доставки Мист Експрес:');
+    }
 
-if (!result.success) {
-    throw new Error(result.error || 'Ошибка создания заказа');
-}
+    if (!shippingAddress) {
+        tg.showAlert('Адреса доставки обов\'язкова');
+        return;
+    }
 
-console.log('Order created:', result.order_id);
-totalTonAmount = result.total_ton; // Save for error message
+    try {
+        showLoading(true);
 
-// 3. Create TON transaction
-const amount = Math.floor(result.total_ton * 1000000000); // Convert to nanoTON
+        // Determine payment method based on settings
+        let payment_method = 'stars'; // default
 
-const transaction = {
-    validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes (TON Connect max)
-    messages: [
-        {
-            address: shopSettings.ton_wallet,
-            amount: amount.toString()
+        if (shopSettings.enable_ton && !shopSettings.enable_stars) {
+            payment_method = 'ton';
+        } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
+            payment_method = 'ton';
         }
-    ]
-};
 
-console.log('Sending transaction:', transaction);
+        // For TON - use TON Connect
+        if (payment_method === 'ton') {
+            await checkoutWithTON(shippingMethod, shippingAddress);
+            return;
+        }
 
-// 4. Send transaction via TON Connect
-const txResult = await tonConnectUI.sendTransaction(transaction);
+        // For Stars - existing logic
+        const orderData = {
+            telegram_user_id: userId,
+            items: cart.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+            })),
+            platform: getPlatform(),
+            payment_method: 'stars',
+            shipping_method: shippingMethod,
+            shipping_address: shippingAddress
+        };
 
-console.log('Transaction sent:', txResult);
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
 
-// 5. Update order with transaction hash
-await fetch(`/api/orders/${result.order_id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        transaction_hash: txResult.boc,
-        status: 'pending_confirmation'
-    })
-});
+        const result = await response.json();
 
-// 6. Clear cart and show success
-cart = [];
-saveCart();
-updateCartCount();
+        if (result.success) {
+            // Direct Invoice Payment
+            if (result.invoice_link) {
+                tg.openInvoice(result.invoice_link, (status) => {
+                    if (status === 'paid') {
+                        cart = [];
+                        saveCart();
+                        updateCartCount();
+                        tg.showAlert('✅ Оплата прошла успешно!');
+                        tg.close();
+                    } else if (status === 'cancelled') {
+                        tg.showAlert('Оплата отменена');
+                    } else if (status === 'failed') {
+                        tg.showAlert('Ошибка оплаты');
+                    } else {
+                        tg.showAlert('Статус оплаты: ' + status);
+                    }
+                });
+            } else {
+                // Fallback for old behavior or other methods
+                cart = [];
+                saveCart();
+                updateCartCount();
+                tg.showAlert(`Заказ создан! Сумма: ${result.total_uah} грн. Проверьте чат.`);
+                showView('main');
+            }
+        } else {
+            tg.showAlert('Ошибка создания заказа: ' + (result.error || 'Неизвестная ошибка'));
+        }
+    } catch (error) {
+        console.error('Checkout error:', error);
+        tg.showAlert('Ошибка при оформлении заказа');
+    } finally {
+        showLoading(false);
+    }
+}
 
-tg.showAlert(`✅ Транзакция отправлена!\n\nСумма: ${result.total_ton.toFixed(4)} TON\nЗаказ #${result.order_id}\n\nЗаказ будет обработан после подтверждения в сети.`);
-showView('main');
+// TON Connect payment flow
+async function checkoutWithTON(shippingMethod, shippingAddress) {
+    let totalTonAmount = null; // Store for error handling
+
+    try {
+        // 1. Check wallet connection
+        if (!tonConnectUI.connected) {
+            tg.showAlert('Пожалуйста, подключите TON кошелек в разделе "Профиль"');
+            showLoading(false);
+            showView('profile');
+            return;
+        }
+
+        const walletAddress = tonConnectUI.account.address;
+        console.log('Wallet connected:', walletAddress);
+
+        // 2. Create order on server
+        const orderData = {
+            telegram_user_id: userId,
+            items: cart.map(item => ({
+                product_id: item.product_id,
+                quantity: item.quantity
+            })),
+            platform: getPlatform(),
+            payment_method: 'ton',
+            shipping_method: shippingMethod,
+            shipping_address: shippingAddress
+        };
+
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(orderData)
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(result.error || 'Ошибка создания заказа');
+        }
+
+        console.log('Order created:', result.order_id);
+        totalTonAmount = result.total_ton; // Save for error message
+
+        // 3. Create TON transaction
+        const amount = Math.floor(result.total_ton * 1000000000); // Convert to nanoTON
+
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes (TON Connect max)
+            messages: [
+                {
+                    address: shopSettings.ton_wallet,
+                    amount: amount.toString()
+                }
+            ]
+        };
+
+        console.log('Sending transaction:', transaction);
+
+        // 4. Send transaction via TON Connect
+        const txResult = await tonConnectUI.sendTransaction(transaction);
+
+        console.log('Transaction sent:', txResult);
+
+        // 5. Update order with transaction hash
+        await fetch(`/api/orders/${result.order_id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                transaction_hash: txResult.boc,
+                status: 'pending_confirmation'
+            })
+        });
+
+        // 6. Clear cart and show success
+        cart = [];
+        saveCart();
+        updateCartCount();
+
+        tg.showAlert(`✅ Транзакция отправлена!\n\nСумма: ${result.total_ton.toFixed(4)} TON\nЗаказ #${result.order_id}\n\nЗаказ будет обработан после подтверждения в сети.`);
+        showView('main');
 
     } catch (error) {
-    console.error('TON payment error:', error);
+        console.error('TON payment error:', error);
 
-    // Check for specific error types
-    const errorMessage = error.message || '';
+        // Check for specific error types
+        const errorMessage = error.message || '';
 
-    if (errorMessage.includes('reject') || errorMessage.includes('cancel')) {
-        // User cancelled the transaction
-        tg.showAlert('Оплата отменена');
-    } else if (errorMessage.includes('No enough funds') || errorMessage.includes('insufficient')) {
-        // Insufficient funds - show friendly message
-        const amountText = totalTonAmount ? totalTonAmount.toFixed(4) : '...';
+        if (errorMessage.includes('reject') || errorMessage.includes('cancel')) {
+            // User cancelled the transaction
+            tg.showAlert('Оплата отменена');
+        } else if (errorMessage.includes('No enough funds') || errorMessage.includes('insufficient')) {
+            // Insufficient funds - show friendly message
+            const amountText = totalTonAmount ? totalTonAmount.toFixed(4) : '...';
 
-        tg.showPopup({
-            title: '💰 Недостаточно средств',
-            message: `Для оплаты нужно ${amountText} TON.\n\nПополните кошелек или купите TON.`,
-            buttons: [
-                { id: 'buy', type: 'default', text: 'Пополнить кошелек' },
-                { id: 'cancel', type: 'cancel', text: 'Отмена' }
-            ]
-        }, (buttonId) => {
-            if (buttonId === 'buy') {
-                // Open Telegram Wallet
-                // Note: Direct link to "Buy" screen is not currently supported by @wallet
-                tg.openTelegramLink('https://t.me/wallet');
-            }
-        });
-    } else {
-        // Other errors
-        tg.showAlert('Ошибка при оплате TON: ' + errorMessage);
+            tg.showPopup({
+                title: '💰 Недостаточно средств',
+                message: `Для оплаты нужно ${amountText} TON.\n\nПополните кошелек или купите TON.`,
+                buttons: [
+                    { id: 'buy', type: 'default', text: 'Пополнить кошелек' },
+                    { id: 'cancel', type: 'cancel', text: 'Отмена' }
+                ]
+            }, (buttonId) => {
+                if (buttonId === 'buy') {
+                    // Open Telegram Wallet
+                    // Note: Direct link to "Buy" screen is not currently supported by @wallet
+                    tg.openTelegramLink('https://t.me/wallet');
+                }
+            });
+        } else {
+            // Other errors
+            tg.showAlert('Ошибка при оплате TON: ' + errorMessage);
+        }
+    } finally {
+        showLoading(false);
     }
-} finally {
-    showLoading(false);
-}
 }
 
 // Show/hide loading
