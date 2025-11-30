@@ -136,17 +136,6 @@ function displayProducts() {
     }
 
     productsList.innerHTML = products.map(product => {
-        const starsPrice = convertToStars(product.price_uah);
-        const tonPrice = (product.price_uah / 1000).toFixed(4);
-
-        // Determine which price to display
-        let priceDisplay = `${starsPrice} ⭐`; // default Stars
-        if (shopSettings.enable_ton && !shopSettings.enable_stars) {
-            priceDisplay = `${tonPrice} 💎 TON`;
-        } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
-            priceDisplay = `${tonPrice} 💎 TON`;
-        }
-
         return `
       <div class="product-card" onclick="openProductModal(${product.id})">
         ${product.image_url ?
@@ -161,7 +150,6 @@ function displayProducts() {
           <div class="product-footer">
             <div>
               <div class="product-price">${product.price_uah} грн</div>
-              <div class="product-stars">${priceDisplay}</div>
             </div>
             <button class="btn-add-cart" onclick="addToCart(${product.id}, event)">
                 <iconify-icon icon="mdi:cart-plus"></iconify-icon>
@@ -255,17 +243,9 @@ function openProductModal(productId) {
     document.getElementById('modalProductDescription').textContent = product.description || 'Нет описания';
     document.getElementById('modalProductPrice').textContent = `${product.price_uah} грн`;
 
-    // Display appropriate payment method
-    const starsPrice = convertToStars(product.price_uah);
-    const tonPrice = (product.price_uah / 1000).toFixed(4);
-
-    if (shopSettings.enable_ton && !shopSettings.enable_stars) {
-        document.getElementById('modalProductStars').textContent = `${tonPrice} 💎 TON`;
-    } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
-        document.getElementById('modalProductStars').textContent = `${tonPrice} 💎 TON`;
-    } else {
-        document.getElementById('modalProductStars').textContent = `${starsPrice} ⭐`;
-    }
+    // Hide Stars display in modal
+    const modalStars = document.getElementById('modalProductStars');
+    if (modalStars) modalStars.style.display = 'none';
 
     document.getElementById('productModal').style.display = 'block';
     tg.HapticFeedback.impactOccurred('medium');
@@ -366,10 +346,9 @@ function updateCartCount() {
 
     // Update Main Button
     const totalUAH = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const totalStars = convertToStars(totalUAH);
 
     if (count > 0) {
-        tg.MainButton.setText(`Оформить заказ (${totalUAH} грн / ${totalStars} ⭐)`);
+        tg.MainButton.setText(`Оформить заказ (${totalUAH} грн)`);
         if (document.getElementById('cartView').style.display === 'block') {
             tg.MainButton.show();
         } else {
@@ -423,24 +402,14 @@ function displayCart() {
 
     // Calculate totals
     const totalUAH = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const totalStars = convertToStars(totalUAH);
-    const totalTON = totalUAH / 1000; // Approximate rate
 
     document.getElementById('totalUAH').textContent = totalUAH.toFixed(2) + ' грн';
 
-    // Display appropriate payment method
-    if (shopSettings.enable_ton && !shopSettings.enable_stars) {
-        // Show TON only
-        document.getElementById('totalStars').textContent = totalTON.toFixed(4) + ' 💎 TON';
-    } else if (shopSettings.enable_ton && shopSettings.enable_stars) {
-        // Show TON (if both enabled)
-        document.getElementById('totalStars').textContent = totalTON.toFixed(4) + ' 💎 TON';
-    } else {
-        // Show Stars (default)
-        document.getElementById('totalStars').textContent = totalStars + ' ⭐';
-    }
+    // Hide Stars total
+    const totalStarsEl = document.getElementById('totalStars');
+    if (totalStarsEl) totalStarsEl.style.display = 'none';
 
-    tg.MainButton.setText(`Оформить заказ (${totalUAH} грн / ${totalStars} ⭐)`);
+    tg.MainButton.setText(`Оформить заказ (${totalUAH} грн)`);
     tg.MainButton.show();
 }
 
@@ -494,13 +463,31 @@ async function checkout() {
         const result = await response.json();
 
         if (result.success) {
-            cart = [];
-            saveCart();
-            updateCartCount();
-
-            tg.showAlert(`Счет отправлен! Сумма: ${result.total_uah} грн (${result.total_stars} ⭐). Проверьте чат с ботом для оплаты.`);
-
-            showView('main');
+            // Direct Invoice Payment
+            if (result.invoice_link) {
+                tg.openInvoice(result.invoice_link, (status) => {
+                    if (status === 'paid') {
+                        cart = [];
+                        saveCart();
+                        updateCartCount();
+                        tg.showAlert('✅ Оплата прошла успешно!');
+                        tg.close();
+                    } else if (status === 'cancelled') {
+                        tg.showAlert('Оплата отменена');
+                    } else if (status === 'failed') {
+                        tg.showAlert('Ошибка оплаты');
+                    } else {
+                        tg.showAlert('Статус оплаты: ' + status);
+                    }
+                });
+            } else {
+                // Fallback for old behavior or other methods
+                cart = [];
+                saveCart();
+                updateCartCount();
+                tg.showAlert(`Заказ создан! Сумма: ${result.total_uah} грн. Проверьте чат.`);
+                showView('main');
+            }
         } else {
             tg.showAlert('Ошибка создания заказа: ' + (result.error || 'Неизвестная ошибка'));
         }

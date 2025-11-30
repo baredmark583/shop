@@ -4,7 +4,7 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const multer = require('multer');
 const { initDatabase, db } = require('./database');
-const { bot, createInvoice } = require('./bot');
+const { bot, createInvoice, createInvoiceLink } = require('./bot');
 const { convertToStars, detectPlatform } = require('./utils/currency');
 
 const app = express();
@@ -201,10 +201,94 @@ app.put('/api/settings', requireAdmin, async (req, res) => {
     }
 });
 
+// Nova Poshta Proxy: Search Cities
+app.post('/api/novaposhta/cities', async (req, res) => {
+    try {
+        const { query } = req.body;
+        const settings = await db.getSettings();
+        const apiKey = settings?.nova_poshta_api_key;
+
+        if (!apiKey) {
+            return res.status(400).json({ error: 'Nova Poshta API key not configured' });
+        }
+
+        const response = await fetch('https://api.novaposhta.ua/v2.0/json/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                apiKey: apiKey,
+                modelName: 'Address',
+                calledMethod: 'searchSettlements',
+                methodProperties: {
+                    CityName: query,
+                    Limit: '50',
+                    Page: '1'
+                }
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            // Filter only cities (Present) and map to simple format
+            const cities = data.data[0].Addresses.map(item => ({
+                ref: item.DeliveryCity,
+                name: item.Present
+            }));
+            res.json(cities);
+        } else {
+            res.status(500).json({ error: 'Nova Poshta API error' });
+        }
+    } catch (error) {
+        console.error('Error searching cities:', error);
+        res.status(500).json({ error: 'Failed to search cities' });
+    }
+});
+
+// Nova Poshta Proxy: Get Warehouses
+app.post('/api/novaposhta/warehouses', async (req, res) => {
+    try {
+        const { cityRef } = req.body;
+        const settings = await db.getSettings();
+        const apiKey = settings?.nova_poshta_api_key;
+
+        if (!apiKey) {
+            return res.status(400).json({ error: 'Nova Poshta API key not configured' });
+        }
+
+        const response = await fetch('https://api.novaposhta.ua/v2.0/json/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                apiKey: apiKey,
+                modelName: 'Address',
+                calledMethod: 'getWarehouses',
+                methodProperties: {
+                    CityRef: cityRef,
+                    Limit: '500'
+                }
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            const warehouses = data.data.map(item => ({
+                ref: item.Ref,
+                name: item.Description
+            }));
+            res.json(warehouses);
+        } else {
+            res.status(500).json({ error: 'Nova Poshta API error' });
+        }
+    } catch (error) {
+        console.error('Error fetching warehouses:', error);
+        res.status(500).json({ error: 'Failed to fetch warehouses' });
+    }
+});
+
 // Create order and generate invoice
 app.post('/api/orders', async (req, res) => {
     try {
-        const { telegram_user_id, items, platform, payment_method, transaction_hash } = req.body;
+        const { telegram_user_id, items, platform, payment_method, transaction_hash, shipping_method, shipping_address } = req.body;
 
         // Calculate total
         let total_uah = 0;
@@ -245,12 +329,17 @@ app.post('/api/orders', async (req, res) => {
             platform || 'mobile',
             payment_method || 'stars',
             transaction_hash,
+            shipping_method,
+            shipping_address,
             enrichedItems
         );
 
-        // If payment method is 'stars', create invoice
+        let invoice_link = null;
+
+        // If payment method is 'stars', create invoice link
         if (payment_method === 'stars' || !payment_method) {
-            await createInvoice(telegram_user_id, orderData, platform || 'mobile');
+            // Use createInvoiceLink instead of createInvoice
+            invoice_link = await createInvoiceLink(orderData, platform || 'mobile');
         }
 
         res.json({
@@ -258,7 +347,8 @@ app.post('/api/orders', async (req, res) => {
             order_id: order.id,
             total_uah,
             total_stars,
-            total_ton
+            total_ton,
+            invoice_link // Return the link
         });
     } catch (error) {
         console.error('Error creating order:', error);

@@ -93,7 +93,9 @@ async function initDatabase() {
       ALTER TABLE orders 
       ADD COLUMN IF NOT EXISTS total_ton DECIMAL(10, 4),
       ADD COLUMN IF NOT EXISTS payment_method VARCHAR(20) DEFAULT 'stars',
-      ADD COLUMN IF NOT EXISTS transaction_hash VARCHAR(255);
+      ADD COLUMN IF NOT EXISTS transaction_hash VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS shipping_method VARCHAR(50),
+      ADD COLUMN IF NOT EXISTS shipping_address TEXT;
     `);
 
     // Order items table
@@ -160,15 +162,15 @@ const db = {
   },
 
   // Create order
-  async createOrder(telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash, items) {
+  async createOrder(telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash, shipping_method, shipping_address, items) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
 
       // Create order
       const orderResult = await client.query(
-        'INSERT INTO orders (telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
-        [telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash]
+        'INSERT INTO orders (telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash, shipping_method, shipping_address) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+        [telegram_user_id, telegram_username, total_uah, total_stars, total_ton, platform, payment_method, transaction_hash, shipping_method, shipping_address]
       );
       const order = orderResult.rows[0];
 

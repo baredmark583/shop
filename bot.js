@@ -96,6 +96,40 @@ async function createInvoice(chatId, orderData, platform) {
 }
 
 /**
+ * Create invoice link for Telegram Stars payment (for Mini App)
+ * @param {object} orderData - Order data with items and total
+ * @param {string} platform - User platform
+ */
+async function createInvoiceLink(orderData, platform) {
+    const totalStars = convertToStars(orderData.total_uah, platform);
+
+    // Create invoice description
+    const itemsList = orderData.items.map(item =>
+        `• ${item.name} x${item.quantity} - ${item.price} грн`
+    ).join('\n');
+
+    const description = `Заказ:\n${itemsList}\n\nИтого: ${orderData.total_uah} грн`;
+
+    // Telegram Stars invoice link
+    return bot.createInvoiceLink(
+        '🛍️ Оплата заказа', // title
+        description, // description
+        JSON.stringify({ // payload
+            order_data: orderData,
+            platform: platform
+        }),
+        '', // provider_token (empty for Stars)
+        'XTR', // currency
+        [ // prices
+            {
+                label: `Товары (${orderData.total_uah} грн)`,
+                amount: totalStars
+            }
+        ]
+    );
+}
+
+/**
  * Handle successful payment
  */
 bot.on('pre_checkout_query', async (query) => {
@@ -165,4 +199,4 @@ bot.on('polling_error', (error) => {
     console.error('Polling error:', error);
 });
 
-module.exports = { bot, createInvoice };
+module.exports = { bot, createInvoice, createInvoiceLink };
