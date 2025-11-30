@@ -467,6 +467,8 @@ async function checkout() {
 
 // TON Connect payment flow
 async function checkoutWithTON() {
+    let totalTonAmount = null; // Store for error handling
+
     try {
         // 1. Check wallet connection
         if (!tonConnectUI.connected) {
@@ -503,6 +505,7 @@ async function checkoutWithTON() {
         }
 
         console.log('Order created:', result.order_id);
+        totalTonAmount = result.total_ton; // Save for error message
 
         // 3. Create TON transaction
         const amount = Math.floor(result.total_ton * 1000000000); // Convert to nanoTON
@@ -513,7 +516,6 @@ async function checkoutWithTON() {
                 {
                     address: shopSettings.ton_wallet,
                     amount: amount.toString()
-                    // Comment/payload removed - causes validation error
                 }
             ]
         };
@@ -546,10 +548,32 @@ async function checkoutWithTON() {
     } catch (error) {
         console.error('TON payment error:', error);
 
-        if (error.message && error.message.includes('reject')) {
+        // Check for specific error types
+        const errorMessage = error.message || '';
+
+        if (errorMessage.includes('reject') || errorMessage.includes('cancel')) {
+            // User cancelled the transaction
             tg.showAlert('Оплата отменена');
+        } else if (errorMessage.includes('No enough funds') || errorMessage.includes('insufficient')) {
+            // Insufficient funds - show friendly message with top-up option
+            const amountText = totalTonAmount ? totalTonAmount.toFixed(4) : '...';
+
+            tg.showPopup({
+                title: '💰 Недостаточно средств',
+                message: `Для оплаты нужно ${amountText} TON.\n\nПополните кошелек и попробуйте снова.`,
+                buttons: [
+                    { id: 'topup', type: 'default', text: 'Пополнить TON' },
+                    { id: 'cancel', type: 'cancel', text: 'Отмена' }
+                ]
+            }, (buttonId) => {
+                if (buttonId === 'topup') {
+                    // Open TON wallet for top-up
+                    tg.openTelegramLink('https://t.me/wallet');
+                }
+            });
         } else {
-            tg.showAlert('Ошибка при оплате TON: ' + (error.message || 'Неизвестная ошибка'));
+            // Other errors
+            tg.showAlert('Ошибка при оплате TON: ' + errorMessage);
         }
     } finally {
         showLoading(false);
