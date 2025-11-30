@@ -170,12 +170,36 @@ function displayProducts() {
     }).join('');
 }
 
-// Convert UAH to Stars based on platform
-function convertToStars(amountUAH) {
-    // Mobile platforms have Google Play commission
-    const isMobile = platform.includes('android') || platform.includes('ios');
-    const rate = isMobile ? 1.0 : 1.2;
-    return Math.ceil(amountUAH * rate);
+// Helper: Get platform-specific Star rate (UAH per 1 Star)
+function getStarRate() {
+    const platformName = (tg.platform || 'unknown').toLowerCase();
+    // Mobile (iOS/Android) - expensive packages (~0.99 UAH/Star)
+    if (platformName === 'ios' || platformName === 'android' || platformName === 'weba') {
+        return 0.99;
+    }
+    // Desktop/Web - cheaper packages (~0.84 UAH/Star)
+    return 0.84;
+}
+
+// Helper: Smart round stars amount
+// User logic: 2510->2500, 2580->2500, 2590->2600
+// Interpretation: Round to nearest 100. If remainder < 90, round down. If >= 90, round up.
+function smartRoundStars(stars) {
+    const integerStars = Math.round(stars);
+    const remainder = integerStars % 100;
+
+    if (remainder < 90) {
+        return integerStars - remainder; // Round down to nearest 100
+    } else {
+        return integerStars + (100 - remainder); // Round up to nearest 100
+    }
+}
+
+function convertToStars(uahAmount) {
+    if (!shopSettings.enable_stars) return 0;
+    const rate = getStarRate();
+    const rawStars = uahAmount / rate;
+    return smartRoundStars(rawStars);
 }
 
 // Get platform type
@@ -336,6 +360,21 @@ function updateCartCount() {
             badge.style.display = 'none';
         }
     }
+
+    // Update Main Button
+    const totalUAH = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const totalStars = convertToStars(totalUAH);
+
+    if (count > 0) {
+        tg.MainButton.setText(`Оформить заказ (${totalUAH} грн / ${totalStars} ⭐)`);
+        if (document.getElementById('cartView').style.display === 'block') {
+            tg.MainButton.show();
+        } else {
+            tg.MainButton.hide();
+        }
+    } else {
+        tg.MainButton.hide();
+    }
 }
 
 // Display cart
@@ -348,6 +387,8 @@ function displayCart() {
         cartItems.style.display = 'none';
         cartEmpty.style.display = 'block';
         cartFooter.style.display = 'none';
+        document.getElementById('totalUAH').textContent = '0.00 грн';
+        document.getElementById('totalStars').textContent = '0 ⭐';
         return;
     }
 
@@ -395,6 +436,9 @@ function displayCart() {
         // Show Stars (default)
         document.getElementById('totalStars').textContent = totalStars + ' ⭐';
     }
+
+    tg.MainButton.setText(`Оформить заказ (${totalUAH} грн / ${totalStars} ⭐)`);
+    tg.MainButton.show();
 }
 
 // Checkout
@@ -567,9 +611,9 @@ async function checkoutWithTON() {
                 ]
             }, (buttonId) => {
                 if (buttonId === 'buy') {
-                    // Open Telegram Wallet with purchase parameter
-                    // This attempts to open the partner purchase menu directly
-                    tg.openTelegramLink('https://t.me/wallet?start=purchase');
+                    // Open Telegram Wallet
+                    // Note: Direct link to "Buy" screen is not currently supported by @wallet
+                    tg.openTelegramLink('https://t.me/wallet');
                 }
             });
         } else {

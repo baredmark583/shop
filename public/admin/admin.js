@@ -62,7 +62,10 @@ function showTab(tabName) {
 // Settings
 async function loadSettings() {
     try {
-        const response = await fetch('/api/settings');
+        const response = await fetch('/api/settings', {
+            headers: getAuthHeaders()
+        });
+        if (response.status === 401) { logout(); return; }
         const settings = await response.json();
 
         document.getElementById('enableStars').checked = settings.enable_stars;
@@ -85,13 +88,14 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
     try {
         const response = await fetch('/api/settings', {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify(settings)
         });
 
         if (response.ok) {
             alert('Настройки сохранены!');
         } else {
+            if (response.status === 401) { logout(); return; }
             alert('Ошибка сохранения настроек');
         }
     } catch (error) {
@@ -104,7 +108,9 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
 
 async function loadProducts() {
     try {
-        const response = await fetch('/api/products');
+        const response = await fetch('/api/products', {
+            headers: getAuthHeaders() // Even GET might need auth if we protected it, but usually safe to send
+        });
         const products = await response.json();
 
         const productsList = document.getElementById('productsList');
@@ -126,8 +132,8 @@ async function loadProducts() {
         <p>${product.description || 'Без описания'}</p>
         <div class="product-price">${product.price_uah} грн</div>
         <div class="product-actions">
-          <button class="btn-edit" onclick="editProduct(${product.id})">✏️ Изменить</button>
-          <button class="btn-delete" onclick="deleteProduct(${product.id})">🗑️ Удалить</button>
+            <button class="btn-edit" onclick="editProduct(${product.id})">✏️ Изменить</button>
+            <button class="btn-delete" onclick="deleteProduct(${product.id})">🗑️ Удалить</button>
         </div>
       </div>
     `).join('');
@@ -150,7 +156,10 @@ function hideProductForm() {
 
 async function editProduct(id) {
     try {
-        const response = await fetch(`/api/products/${id}`);
+        const response = await fetch(`/api/products/${id}`, {
+            headers: getAuthHeaders()
+        });
+        if (response.status === 401) { logout(); return; }
         const product = await response.json();
 
         document.getElementById('formTitle').textContent = 'Изменить товар';
@@ -175,7 +184,13 @@ async function deleteProduct(id) {
     if (!confirm('Удалить этот товар?')) return;
 
     try {
-        await fetch(`/api/products/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/products/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (response.status === 401) { logout(); return; }
+
         loadProducts();
     } catch (error) {
         console.error('Error deleting product:', error);
@@ -203,10 +218,17 @@ document.getElementById('productDataForm').addEventListener('submit', async (e) 
         const url = id ? `/api/products/${id}` : '/api/products';
         const method = id ? 'PUT' : 'POST';
 
-        await fetch(url, {
+        // For FormData, we need Auth header but NOT Content-Type (browser sets it)
+        const headers = getAuthHeaders();
+        delete headers['Content-Type'];
+
+        const response = await fetch(url, {
             method,
+            headers,
             body: formData
         });
+
+        if (response.status === 401) { logout(); return; }
 
         hideProductForm();
         loadProducts();
@@ -234,7 +256,9 @@ document.getElementById('productImage').addEventListener('change', (e) => {
 
 async function loadBanners() {
     try {
-        const response = await fetch('/api/banners');
+        const response = await fetch('/api/banners', {
+            headers: getAuthHeaders()
+        });
         const banners = await response.json();
 
         const bannersList = document.getElementById('bannersList');
@@ -278,7 +302,9 @@ function hideBannerForm() {
 
 async function editBanner(id) {
     try {
-        const response = await fetch('/api/banners');
+        const response = await fetch('/api/banners', {
+            headers: getAuthHeaders()
+        });
         const banners = await response.json();
         const banner = banners.find(b => b.id === id);
 
@@ -303,7 +329,13 @@ async function deleteBanner(id) {
     if (!confirm('Удалить этот баннер?')) return;
 
     try {
-        await fetch(`/api/banners/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/banners/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+
+        if (response.status === 401) { logout(); return; }
+
         loadBanners();
     } catch (error) {
         console.error('Error deleting banner:', error);
@@ -335,10 +367,17 @@ document.getElementById('bannerDataForm').addEventListener('submit', async (e) =
         const url = id ? `/api/banners/${id}` : '/api/banners';
         const method = id ? 'PUT' : 'POST';
 
-        await fetch(url, {
+        // For FormData, we need Auth header but NOT Content-Type
+        const headers = getAuthHeaders();
+        delete headers['Content-Type'];
+
+        const response = await fetch(url, {
             method,
+            headers,
             body: formData
         });
+
+        if (response.status === 401) { logout(); return; }
 
         hideBannerForm();
         loadBanners();
