@@ -20,6 +20,12 @@
 
         <!-- Products Section -->
         <div id="mainView" class="view">
+            <div class="filter-bar">
+                <label for="categoryFilter">Категория:</label>
+                <select id="categoryFilter" onchange="onCategoryChange(event)">
+                    <option value="all">Все категории</option>
+                </select>
+            </div>
             <div id="productsList" class="products-grid">
                 <!-- Products will be loaded here -->
             </div>

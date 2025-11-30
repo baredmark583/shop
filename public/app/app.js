@@ -11,6 +11,8 @@ let cart = JSON.parse(localStorage.getItem('cart') || '[]');
 let products = [];
 let selectedProductId = null;
 let userOrders = [];
+let selectedCategory = 'all';
+let categories = [];
 
 // TON Connect & Settings
 let tonConnectUI;
@@ -177,24 +179,50 @@ async function loadProducts() {
     try {
         const response = await fetch('/api/products');
         products = await response.json();
+        // Собрать категории
+        categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
+        renderCategoryFilter();
+        renderProducts();
+    } catch (error) {
+        console.error('Error loading products:', error);
+    }
+}
 
-        const productsList = document.getElementById('productsList');
-        if (!productsList) return;
+function renderCategoryFilter() {
+    const select = document.getElementById('categoryFilter');
+    if (!select) return;
+    const options = ['<option value="all">Все категории</option>']
+        .concat(categories.map(c => `<option value="${escapeHtml(c)}"${selectedCategory === c ? ' selected' : ''}>${escapeHtml(c)}</option>`));
+    select.innerHTML = options.join('');
+}
 
-        if (products.length === 0) {
-            productsList.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">Товаров пока нет</p>';
-            return;
-        }
+function onCategoryChange(event) {
+    selectedCategory = event.target.value;
+    renderProducts();
+}
 
-        productsList.innerHTML = products.map(product => {
-            return `
+function renderProducts() {
+    const productsList = document.getElementById('productsList');
+    if (!productsList) return;
+
+    const filtered = selectedCategory === 'all'
+        ? products
+        : products.filter(p => (p.category || '') === selectedCategory);
+
+    if (filtered.length === 0) {
+        productsList.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">Товаров пока нет</p>';
+        return;
+    }
+
+    productsList.innerHTML = filtered.map(product => {
+        return `
       <div class="product-card" onclick="openProductModal(${product.id})">
         ${product.image_url ?
-                    `<img src="${escapeHtml(product.image_url)}" class="product-image" alt="${escapeHtml(product.name)}">` :
-                    `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
+                `<img src="${escapeHtml(product.image_url)}" class="product-image" alt="${escapeHtml(product.name)}">` :
+                `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
             <iconify-icon icon="mdi:package-variant" style="font-size: 64px; color: var(--text-secondary);"></iconify-icon>
           </div>`
-                }
+            }
         <div class="product-info">
           <div class="product-name">${escapeHtml(product.name)}</div>
           ${product.description ? `<div class="product-description">${escapeHtml(product.description)}</div>` : ''}
@@ -209,10 +237,7 @@ async function loadProducts() {
         </div>
       </div>
     `;
-        }).join('');
-    } catch (error) {
-        console.error('Error loading products:', error);
-    }
+    }).join('');
 }
 
 // Load banners

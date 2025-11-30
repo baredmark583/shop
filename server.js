@@ -62,10 +62,21 @@ function requireAdmin(req, res, next) {
 // Get all products
 app.get('/api/products', async (req, res) => {
     try {
-        const products = await db.getAllProducts();
+        const products = await db.getAllProducts(false); // только активные и с остатком
         res.json(products);
     } catch (error) {
         console.error('Error fetching products:', error);
+        res.status(500).json({ error: 'Failed to fetch products' });
+    }
+});
+
+// Admin products (включая нулевой остаток)
+app.get('/api/admin/products', requireAdmin, async (req, res) => {
+    try {
+        const products = await db.getAllProducts(true);
+        res.json(products);
+    } catch (error) {
+        console.error('Error fetching products (admin):', error);
         res.status(500).json({ error: 'Failed to fetch products' });
     }
 });
@@ -87,10 +98,10 @@ app.get('/api/products/:id', async (req, res) => {
 // Create product (admin only)
 app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
     try {
-        const { name, description, price_uah } = req.body;
+        const { name, description, price_uah, quantity, category } = req.body;
         const image_url = req.file ? `/uploads/${req.file.filename}` : null;
 
-        const product = await db.createProduct(name, description, parseFloat(price_uah), image_url);
+        const product = await db.createProduct(name, description, parseFloat(price_uah), image_url, category, parseInt(quantity) || 0);
         res.json(product);
     } catch (error) {
         console.error('Error creating product:', error);
@@ -101,11 +112,11 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
 // Update product (admin only)
 app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, res) => {
     try {
-        const { name, description, price_uah } = req.body;
+        const { name, description, price_uah, quantity, category } = req.body;
         const existingProduct = await db.getProduct(req.params.id);
         const image_url = req.file ? `/uploads/${req.file.filename}` : existingProduct.image_url;
 
-        const product = await db.updateProduct(req.params.id, name, description, parseFloat(price_uah), image_url);
+        const product = await db.updateProduct(req.params.id, name, description, parseFloat(price_uah), image_url, category, parseInt(quantity) || 0);
         res.json(product);
     } catch (error) {
         console.error('Error updating product:', error);

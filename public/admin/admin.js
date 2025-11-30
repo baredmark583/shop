@@ -124,8 +124,8 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
 
 async function loadProducts() {
     try {
-        const response = await fetch('/api/products', {
-            headers: getAuthHeaders() // Even GET might need auth if we protected it, but usually safe to send
+        const response = await fetch('/api/admin/products', {
+            headers: getAuthHeaders()
         });
         const products = await response.json();
 
@@ -147,6 +147,8 @@ async function loadProducts() {
         <h3>${product.name}</h3>
         <p>${product.description || 'Без описания'}</p>
         <div class="product-price">${product.price_uah} грн</div>
+        <div style="font-size:14px; color: var(--text-secondary);">Категория: ${product.category || '—'}</div>
+        <div style="font-size:14px; color: var(--text-secondary);">Остаток: ${product.quantity ?? 0}</div>
         <div class="product-actions">
             <button class="btn-edit" onclick="editProduct(${product.id})">✏️ Изменить</button>
             <button class="btn-delete" onclick="deleteProduct(${product.id})">🗑️ Удалить</button>
@@ -183,6 +185,8 @@ async function editProduct(id) {
         document.getElementById('productName').value = product.name;
         document.getElementById('productDescription').value = product.description || '';
         document.getElementById('productPrice').value = product.price_uah;
+        document.getElementById('productQuantity').value = product.quantity ?? 0;
+        document.getElementById('productCategory').value = product.category || '';
 
         if (product.image_url) {
             const preview = document.getElementById('imagePreview');
@@ -224,6 +228,8 @@ document.getElementById('productDataForm').addEventListener('submit', async (e) 
     formData.append('name', document.getElementById('productName').value);
     formData.append('description', document.getElementById('productDescription').value);
     formData.append('price_uah', document.getElementById('productPrice').value);
+    formData.append('quantity', document.getElementById('productQuantity').value);
+    formData.append('category', document.getElementById('productCategory').value);
 
     const imageFile = document.getElementById('productImage').files[0];
     if (imageFile) {

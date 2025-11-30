@@ -32,6 +32,8 @@ async function initDatabase() {
         price_uah DECIMAL(10, 2) NOT NULL,
         image_url VARCHAR(500),
         images TEXT[], -- Multiple images support
+        category VARCHAR(255),
+        quantity INTEGER DEFAULT 0,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -106,6 +108,13 @@ async function initDatabase() {
       ADD COLUMN IF NOT EXISTS shipping_address TEXT;
     `);
 
+    // Migrate products table (add quantity/category if not exist)
+    await client.query(`
+      ALTER TABLE products
+      ADD COLUMN IF NOT EXISTS category VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 0;
+    `);
+
     // Order items table
     await client.query(`
       CREATE TABLE IF NOT EXISTS order_items (
@@ -133,9 +142,10 @@ async function initDatabase() {
 // Products CRUD
 const db = {
   // Get all products
-  async getAllProducts() {
+  async getAllProducts(includeUnavailable = false) {
+    const where = includeUnavailable ? '' : 'WHERE is_active = true AND quantity > 0';
     const result = await pool.query(
-      'SELECT * FROM products WHERE is_active = true ORDER BY created_at DESC'
+      `SELECT * FROM products ${where} ORDER BY created_at DESC`
     );
     return result.rows;
   },
@@ -147,19 +157,19 @@ const db = {
   },
 
   // Create product
-  async createProduct(name, description, price_uah, image_url) {
+  async createProduct(name, description, price_uah, image_url, category, quantity) {
     const result = await pool.query(
-      'INSERT INTO products (name, description, price_uah, image_url) VALUES ($1, $2, $3, $4) RETURNING *',
-      [name, description, price_uah, image_url]
+      'INSERT INTO products (name, description, price_uah, image_url, category, quantity) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [name, description, price_uah, image_url, category || null, quantity || 0]
     );
     return result.rows[0];
   },
 
   // Update product
-  async updateProduct(id, name, description, price_uah, image_url) {
+  async updateProduct(id, name, description, price_uah, image_url, category, quantity) {
     const result = await pool.query(
-      'UPDATE products SET name = $1, description = $2, price_uah = $3, image_url = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *',
-      [name, description, price_uah, image_url, id]
+      'UPDATE products SET name = $1, description = $2, price_uah = $3, image_url = $4, category = $5, quantity = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7 RETURNING *',
+      [name, description, price_uah, image_url, category || null, quantity || 0, id]
     );
     return result.rows[0];
   },
@@ -184,6 +194,18 @@ const db = {
 
       // Create order items
       for (const item of items) {
+        // lock product row
+        const productRes = await client.query('SELECT quantity, name FROM products WHERE id = $1 FOR UPDATE', [item.product_id]);
+        if (productRes.rows.length === 0) {
+          throw new Error(`Product ${item.product_id} not found`);
+        }
+        const currentQty = productRes.rows[0].quantity || 0;
+        if (currentQty < item.quantity) {
+          throw new Error(`Not enough stock for ${productRes.rows[0].name}`);
+        }
+        // decrement stock
+        await client.query('UPDATE products SET quantity = quantity - $1 WHERE id = $2', [item.quantity, item.product_id]);
+
         await client.query(
           'INSERT INTO order_items (order_id, product_id, product_name, quantity, price_uah) VALUES ($1, $2, $3, $4, $5)',
           [order.id, item.product_id, item.name, item.quantity, item.price]
