@@ -7,16 +7,16 @@
     <title>Магазин</title>
     <link rel="stylesheet" href="/app/style.css">
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://code.icon
-
-ify.design/3/3.1.0/iconify.min.js"></script>
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
 </head>
 
 <body>
     <div class="app">
         <!-- Banners Section -->
-        <div id="bannersSlider" class="banners-slider"></div>
+        <div id="bannersContainer" class="banners-slider" style="display: none;">
+            <div id="bannersCarousel"></div>
+        </div>
 
         <!-- Products Section -->
         <div id="mainView" class="view">
@@ -35,8 +35,7 @@ ify.design/3/3.1.0/iconify.min.js"></script>
                 <!-- Cart items will be shown here -->
             </div>
 
-            <div id="cartEmpty"
-                style="display: none; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
+            <div id="cartEmpty" style="display: none; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
                 <iconify-icon icon="mdi:cart-outline" style="font-size: 64px; margin-bottom: 20px;"></iconify-icon>
                 <p>Корзина пуста</p>
             </div>
@@ -47,177 +46,183 @@ ify.design/3/3.1.0/iconify.min.js"></script>
                     <div>
                         <div id="totalUAH" class="total-uah">0 грн</div>
                         <div id="totalStars" class="total-stars">0 ⭐</div>
-                        <div id="totalTON" class="total-ton" style="font-size: 14px; color: #0098EA; display: none;">0
-                            style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd;">
-                            <option value="novaposhta">Нова Пошта</option>
-                            <option value="ukrposhta">Укрпошта</option>
-                            <option value="meest">Мист Експрес</option>
-                            </select>
-                        </div>
-
-                        <!-- Nova Poshta Form -->
-                        <div id="novaposhtaForm" class="shipping-method-form">
-                            <div class="form-group">
-                                <label>Місто</label>
-                                <input type="text" id="npCity" placeholder="Почніть вводити назву міста..."
-                                    oninput="searchNPCities()" autocomplete="off">
-                                <div id="npCitiesList" class="autocomplete-list" style="display: none;"></div>
-                                <input type="hidden" id="npCityRef">
-                            </div>
-                            <div class="form-group">
-                                <label>Відділення</label>
-                                <select id="npWarehouse"
-                                    style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd;"
-                                    disabled>
-                                    <option>Спочатку оберіть місто</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Ім'я</label>
-                                <input type="text" id="npFirstName" placeholder="Ім'я">
-                            </div>
-                            <div class="form-group">
-                                <label>Прізвище</label>
-                                <input type="text" id="npLastName" placeholder="Прізвище">
-                            </div>
-                            <div class="form-group">
-                                <label>Телефон</label>
-                                <input type="tel" id="npPhone" placeholder="+380...">
-                            </div>
-                        </div>
-
-                        <!-- Ukrposhta Form -->
-                        <div id="ukrposhtaForm" class="shipping-method-form" style="display: none;">
-                            <div class="form-group">
-                                <label>Місто</label>
-                                <input type="text" id="upCity" placeholder="Місто">
-                            </div>
-                            <div class="form-group">
-                                <label>Індекс</label>
-                                <input type="text" id="upIndex" placeholder="01001">
-                            </div>
-                            <div class="form-group">
-                                <label>Вулиця та номер будинку</label>
-                                <input type="text" id="upAddress" placeholder="вул. Хрещатик, 1">
-                            </div>
-                            <div class="form-group">
-                                <label>Ім'я</label>
-                                <input type="text" id="upFirstName" placeholder="Ім'я">
-                            </div>
-                            <div class="form-group">
-                                <label>Прізвище</label>
-                                <input type="text" id="upLastName" placeholder="Прізвище">
-                            </div>
-                            <div class="form-group">
-                                <label>Телефон</label>
-                                <input type="tel" id="upPhone" placeholder="+380...">
-                            </div>
-                        </div>
-
-                        <!-- Meest Form -->
-                        <div id="meestForm" class="shipping-method-form" style="display: none;">
-                            <div class="form-group">
-                                <label>Місто</label>
-                                <input type="text" id="meestCity" placeholder="Місто">
-                            </div>
-                            <div class="form-group">
-                                <label>Індекс</label>
-                                <input type="text" id="meestIndex" placeholder="01001">
-                            </div>
-                            <div class="form-group">
-                                <label>Вулиця та номер будинку</label>
-                                <input type="text" id="meestAddress" placeholder="вул. Хрещатик, 1">
-                            </div>
-                            <div class="form-group">
-                                <label>Ім'я</label>
-                                <input type="text" id="meestFirstName" placeholder="Ім'я">
-                            </div>
-                            <div class="form-group">
-                                <label>Прізвище</label>
-                                <input type="text" id="meestLastName" placeholder="Прізвище">
-                            </div>
-                            <div class="form-group">
-                                <label>Телефон</label>
-                                <input type="tel" id="meestPhone" placeholder="+380...">
-                            </div>
-                        </div>
-
-                        <button onclick="proceedToPayment()" class="btn-primary"
-                            style="width: 100%; margin-top: 20px; padding: 15px;">
-                            Перейти до оплати
-                        </button>
-                        <button onclick="showView('cart')" class="btn-secondary"
-                            style="width: 100%; margin-top: 10px; padding: 15px;">
-                            Назад до кошика
-                        </button>
                     </div>
-                </div>
-
-                <!-- Profile View -->
-                <div id="profileView" class="view" style="display: none;">
-                    <div class="view-header">
-                        <h2>Профиль</h2>
-                    </div>
-                    <div class="profile-content">
-                        <div class="profile-info">
-                            <iconify-icon icon="mdi:account-circle"
-                                style="font-size: 80px; color: var(--primary);"></iconify-icon>
-                            <h3 id="userName">Пользователь</h3>
-                            <p id="userId" style="color: var(--text-secondary);"></p>
-                            <div id="ton-connect" style="margin-top: 20px; display: flex; justify-content: center;">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Product Detail Modal -->
-                <div id="productModal" class="modal" style="display: none;">
-                    <div class="modal-overlay" onclick="closeProductModal()"></div>
-                    <div class="modal-product-content">
-                        <button class="modal-close" onclick="closeProductModal()">
-                            <iconify-icon icon="mdi:close"></iconify-icon>
-                        </button>
-                        <img id="modalProductImage" class="modal-product-image" alt="">
-                        <div class="modal-product-info">
-                            <h2 id="modalProductName"></h2>
-                            <p id="modalProductDescription"></p>
-                            <div class="modal-product-footer">
-                                <div>
-                                    <div id="modalProductPrice" class="product-price"></div>
-                                    <div id="modalProductStars" class="product-stars"></div>
-                                </div>
-                                <button id="modalAddToCart" class="btn-add-cart" onclick="addToCartFromModal()">
-                                    <iconify-icon icon="mdi:cart-plus"></iconify-icon>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Bottom Navigation -->
-                <nav class="bottom-nav">
-                    <button class="nav-item active" onclick="showView('main')" data-view="main">
-                        <iconify-icon icon="mdi:home"></iconify-icon>
-                        <span>Главная</span>
-                    </button>
-                    <button class="nav-item" onclick="showView('cart')" data-view="cart">
-                        <iconify-icon icon="mdi:cart"></iconify-icon>
-                        <span>Корзина</span>
-                        <div id="navCartBadge" class="nav-badge" style="display: none;">0</div>
-                    </button>
-                    <button class="nav-item" onclick="showView('profile')" data-view="profile">
-                        <iconify-icon icon="mdi:account"></iconify-icon>
-                        <span>Профиль</span>
-                    </button>
-                </nav>
-
-                <!-- Loading spinner -->
-                <div id="loading" class="loading" style="display: none;">
-                    <div class="spinner"></div>
                 </div>
             </div>
+        </div>
 
-            <script src="/app/app.js"></script>
+        <!-- Shipping View -->
+        <div id="shippingView" class="view" style="display: none;">
+            <div class="view-header">
+                <h2>Доставка</h2>
+            </div>
+
+            <div class="shipping-content">
+                <div class="form-group">
+                    <label for="shippingMethodSelect">Способ доставки</label>
+                    <select id="shippingMethodSelect" onchange="switchShippingMethod()">
+                        <option value="novaposhta">Новая Почта</option>
+                        <option value="ukrposhta">Укрпочта</option>
+                        <option value="meest">Meest</option>
+                    </select>
+                </div>
+
+                <!-- Nova Poshta Form -->
+                <div id="novaposhtaForm" class="shipping-method-form">
+                    <div class="form-group" style="position: relative;">
+                        <label for="npCity">Город</label>
+                        <input type="text" id="npCity" placeholder="Начните вводить город…" oninput="searchNPCities()" autocomplete="off">
+                        <div id="npCitiesList" class="autocomplete-list" style="display: none;"></div>
+                        <input type="hidden" id="npCityRef">
+                    </div>
+                    <div class="form-group">
+                        <label for="npWarehouse">Отделение</label>
+                        <select id="npWarehouse" disabled>
+                            <option>Сначала выберите город</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="npFirstName">Имя</label>
+                        <input type="text" id="npFirstName" placeholder="Имя">
+                    </div>
+                    <div class="form-group">
+                        <label for="npLastName">Фамилия</label>
+                        <input type="text" id="npLastName" placeholder="Фамилия">
+                    </div>
+                    <div class="form-group">
+                        <label for="npPhone">Телефон</label>
+                        <input type="tel" id="npPhone" placeholder="+380...">
+                    </div>
+                </div>
+
+                <!-- Ukrposhta Form -->
+                <div id="ukrposhtaForm" class="shipping-method-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="upCity">Город</label>
+                        <input type="text" id="upCity" placeholder="Город">
+                    </div>
+                    <div class="form-group">
+                        <label for="upIndex">Индекс</label>
+                        <input type="text" id="upIndex" placeholder="01001">
+                    </div>
+                    <div class="form-group">
+                        <label for="upAddress">Улица и дом</label>
+                        <input type="text" id="upAddress" placeholder="ул. Крещатик, 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="upFirstName">Имя</label>
+                        <input type="text" id="upFirstName" placeholder="Имя">
+                    </div>
+                    <div class="form-group">
+                        <label for="upLastName">Фамилия</label>
+                        <input type="text" id="upLastName" placeholder="Фамилия">
+                    </div>
+                    <div class="form-group">
+                        <label for="upPhone">Телефон</label>
+                        <input type="tel" id="upPhone" placeholder="+380...">
+                    </div>
+                </div>
+
+                <!-- Meest Form -->
+                <div id="meestForm" class="shipping-method-form" style="display: none;">
+                    <div class="form-group">
+                        <label for="meestCity">Город</label>
+                        <input type="text" id="meestCity" placeholder="Город">
+                    </div>
+                    <div class="form-group">
+                        <label for="meestIndex">Индекс</label>
+                        <input type="text" id="meestIndex" placeholder="01001">
+                    </div>
+                    <div class="form-group">
+                        <label for="meestAddress">Улица и дом</label>
+                        <input type="text" id="meestAddress" placeholder="ул. Крещатик, 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="meestFirstName">Имя</label>
+                        <input type="text" id="meestFirstName" placeholder="Имя">
+                    </div>
+                    <div class="form-group">
+                        <label for="meestLastName">Фамилия</label>
+                        <input type="text" id="meestLastName" placeholder="Фамилия">
+                    </div>
+                    <div class="form-group">
+                        <label for="meestPhone">Телефон</label>
+                        <input type="tel" id="meestPhone" placeholder="+380...">
+                    </div>
+                </div>
+
+                <button onclick="proceedToPayment()" class="btn-primary" style="width: 100%; margin-top: 20px;">
+                    Перейти к оплате
+                </button>
+                <button onclick="showView('cart')" class="btn-secondary" style="width: 100%; margin-top: 10px;">
+                    Назад к корзине
+                </button>
+            </div>
+        </div>
+
+        <!-- Profile View -->
+        <div id="profileView" class="view" style="display: none;">
+            <div class="view-header">
+                <h2>Профиль</h2>
+            </div>
+            <div class="profile-content">
+                <div class="profile-info">
+                    <iconify-icon icon="mdi:account-circle" style="font-size: 80px; color: var(--primary);"></iconify-icon>
+                    <h3 id="userName">Пользователь</h3>
+                    <p id="userId" style="color: var(--text-secondary);"></p>
+                    <div id="ton-connect" style="margin-top: 20px; display: flex; justify-content: center;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail Modal -->
+        <div id="productModal" class="modal" style="display: none;">
+            <div class="modal-overlay" onclick="closeProductModal()"></div>
+            <div class="modal-product-content">
+                <button class="modal-close" onclick="closeProductModal()">
+                    <iconify-icon icon="mdi:close"></iconify-icon>
+                </button>
+                <img id="modalProductImage" class="modal-product-image" alt="">
+                <div class="modal-product-info">
+                    <h2 id="modalProductName"></h2>
+                    <p id="modalProductDescription"></p>
+                    <div class="modal-product-footer">
+                        <div>
+                            <div id="modalProductPrice" class="product-price"></div>
+                            <div id="modalProductStars" class="product-stars"></div>
+                        </div>
+                        <button id="modalAddToCart" class="btn-add-cart" onclick="addToCartFromModal()">
+                            <iconify-icon icon="mdi:cart-plus"></iconify-icon>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" onclick="showView('main')" data-view="main">
+                <iconify-icon icon="mdi:home"></iconify-icon>
+                <span>Главная</span>
+            </button>
+            <button class="nav-item" onclick="showView('cart')" data-view="cart">
+                <iconify-icon icon="mdi:cart"></iconify-icon>
+                <span>Корзина</span>
+                <div id="navCartBadge" class="nav-badge" style="display: none;">0</div>
+            </button>
+            <button class="nav-item" onclick="showView('profile')" data-view="profile">
+                <iconify-icon icon="mdi:account"></iconify-icon>
+                <span>Профиль</span>
+            </button>
+        </nav>
+
+        <!-- Loading spinner -->
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+        </div>
+    </div>
+
+    <script src="/app/app.js"></script>
 </body>
 
 </html>
