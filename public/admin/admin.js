@@ -71,6 +71,7 @@ async function loadSettings() {
         document.getElementById('enableStars').checked = settings.enable_stars;
         document.getElementById('enableTon').checked = settings.enable_ton;
         document.getElementById('tonWallet').value = settings.ton_wallet || '';
+        document.getElementById('novaPoshtaKey').value = settings.nova_poshta_api_key || '';
     } catch (error) {
         console.error('Error loading settings:', error);
     }
@@ -82,7 +83,8 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
     const settings = {
         enable_stars: document.getElementById('enableStars').checked,
         enable_ton: document.getElementById('enableTon').checked,
-        ton_wallet: document.getElementById('tonWallet').value
+        ton_wallet: document.getElementById('tonWallet').value,
+        nova_poshta_api_key: document.getElementById('novaPoshtaKey').value
     };
 
     try {
