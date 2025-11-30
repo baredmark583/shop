@@ -62,6 +62,9 @@ async function init() {
     await loadBanners();
     await loadProducts();
     updateCartCount();
+
+    // Setup Main Button listener
+    tg.MainButton.onClick(checkout);
 }
 
 // Helper to darken/lighten color
