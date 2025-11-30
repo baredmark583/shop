@@ -11,7 +11,24 @@ document.getElementById('adminUsername').textContent =
 function logout() {
     localStorage.removeItem('admin_logged_in');
     localStorage.removeItem('admin_username');
+    localStorage.removeItem('admin_password');
     window.location.href = '/admin';
+}
+
+// Helper to create authorized headers
+function getAuthHeaders() {
+    const username = localStorage.getItem('admin_username');
+    const password = localStorage.getItem('admin_password');
+
+    if (!username || !password) {
+        throw new Error('Not authenticated');
+    }
+
+    const credentials = btoa(`${username}:${password}`);
+    return {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/json'
+    };
 }
 
 // Tab switching

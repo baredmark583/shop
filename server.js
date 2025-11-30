@@ -34,6 +34,29 @@ if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Authentication middleware for admin routes
+function requireAdmin(req, res, next) {
+    const authHeader = req.headers['authorization'];
+
+    if (!authHeader || !authHeader.startsWith('Basic ')) {
+        return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    try {
+        const base64Credentials = authHeader.split(' ')[1];
+        const credentials = Buffer.from(base64Credentials, 'base64').toString('utf-8');
+        const [username, password] = credentials.split(':');
+
+        if (username === process.env.ADMIN_USERNAME && password === process.env.ADMIN_PASSWORD) {
+            next();
+        } else {
+            res.status(403).json({ error: 'Invalid credentials' });
+        }
+    } catch (error) {
+        res.status(401).json({ error: 'Invalid authentication header' });
+    }
+}
+
 // ==================== API Routes ====================
 
 // Get all products
@@ -62,7 +85,7 @@ app.get('/api/products/:id', async (req, res) => {
 });
 
 // Create product (admin only)
-app.post('/api/products', upload.single('image'), async (req, res) => {
+app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { name, description, price_uah } = req.body;
         const image_url = req.file ? `/uploads/${req.file.filename}` : null;
@@ -76,7 +99,7 @@ app.post('/api/products', upload.single('image'), async (req, res) => {
 });
 
 // Update product (admin only)
-app.put('/api/products/:id', upload.single('image'), async (req, res) => {
+app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { name, description, price_uah } = req.body;
         const existingProduct = await db.getProduct(req.params.id);
@@ -91,7 +114,7 @@ app.put('/api/products/:id', upload.single('image'), async (req, res) => {
 });
 
 // Delete product (admin only)
-app.delete('/api/products/:id', async (req, res) => {
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
     try {
         await db.deleteProduct(req.params.id);
         res.json({ success: true });
@@ -113,7 +136,7 @@ app.get('/api/banners', async (req, res) => {
 });
 
 // Create banner (admin only)
-app.post('/api/banners', upload.single('image'), async (req, res) => {
+app.post('/api/banners', requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { link_url, sort_order } = req.body;
         const image_url = req.file ? `/uploads/${req.file.filename}` : null;
@@ -131,7 +154,7 @@ app.post('/api/banners', upload.single('image'), async (req, res) => {
 });
 
 // Update banner (admin only)
-app.put('/api/banners/:id', upload.single('image'), async (req, res) => {
+app.put('/api/banners/:id', requireAdmin, upload.single('image'), async (req, res) => {
     try {
         const { link_url, sort_order } = req.body;
         const existingBanner = await db.getAllBanners().then(b => b.find(x => x.id == req.params.id));
@@ -146,7 +169,7 @@ app.put('/api/banners/:id', upload.single('image'), async (req, res) => {
 });
 
 // Delete banner (admin only)
-app.delete('/api/banners/:id', async (req, res) => {
+app.delete('/api/banners/:id', requireAdmin, async (req, res) => {
     try {
         await db.deleteBanner(req.params.id);
         res.json({ success: true });
@@ -168,7 +191,7 @@ app.get('/api/settings', async (req, res) => {
 });
 
 // Update settings (admin only)
-app.put('/api/settings', async (req, res) => {
+app.put('/api/settings', requireAdmin, async (req, res) => {
     try {
         const settings = await db.updateSettings(req.body);
         res.json(settings);

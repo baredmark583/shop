@@ -69,6 +69,14 @@ function adjustColor(color, amount) {
     return '#' + color.replace(/^#/, '').replace(/../g, color => ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
 }
 
+// Helper to escape HTML (prevent XSS)
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Load banners
 async function loadBanners() {
     try {
@@ -139,14 +147,14 @@ function displayProducts() {
         return `
       <div class="product-card" onclick="openProductModal(${product.id})">
         ${product.image_url ?
-                `<img src="${product.image_url}" class="product-image" alt="${product.name}">` :
+                `<img src="${escapeHtml(product.image_url)}" class="product-image" alt="${escapeHtml(product.name)}">` :
                 `<div class="product-image" style="display: flex; align-items: center; justify-content: center;">
             <span style="font-size: 48px;">📦</span>
           </div>`
             }
         <div class="product-info">
-          <div class="product-name">${product.name}</div>
-          ${product.description ? `<div class="product-description">${product.description}</div>` : ''}
+          <div class="product-name">${escapeHtml(product.name)}</div>
+          ${product.description ? `<div class="product-description">${escapeHtml(product.description)}</div>` : ''}
           <div class="product-footer">
             <div>
               <div class="product-price">${product.price_uah} грн</div>
@@ -214,7 +222,7 @@ function openProductModal(productId) {
     selectedProductId = productId;
 
     const modalImg = document.getElementById('modalProductImage');
-    if (modalImg) modalImg.src = product.image_url || '';
+    if (modalImg) modalImg.src = escapeHtml(product.image_url) || '';
 
     document.getElementById('modalProductName').textContent = product.name;
     document.getElementById('modalProductDescription').textContent = product.description || 'Нет описания';
@@ -351,13 +359,13 @@ function displayCart() {
     cartItems.innerHTML = cart.map(item => `
     <div class="cart-item">
       ${item.image_url ?
-            `<img src="${item.image_url}" class="cart-item-image" alt="${item.name}">` :
+            `<img src="${escapeHtml(item.image_url)}" class="cart-item-image" alt="${escapeHtml(item.name)}">` :
             `<div class="cart-item-image" style="display: flex; align-items: center; justify-content: center;">
           <span style="font-size: 32px;">📦</span>
         </div>`
         }
       <div class="cart-item-info">
-        <div class="cart-item-name">${item.name}</div>
+        <div class="cart-item-name">${escapeHtml(item.name)}</div>
         <div class="cart-item-price">${item.price} грн × ${item.quantity}</div>
         <div class="cart-item-controls">
           <button class="btn-quantity" onclick="updateQuantity(${item.product_id}, -1)">−</button>
@@ -493,6 +501,25 @@ async function checkoutWithTON() {
         if (!result.success) {
             throw new Error(result.error || 'Ошибка создания заказа');
         }
+
+        console.log('Order created:', result.order_id);
+
+        // 3. Create TON transaction
+        const amount = Math.floor(result.total_ton * 1000000000); // Convert to nanoTON
+
+        const transaction = {
+            validUntil: Math.floor(Date.now() / 1000) + 300, // 5 minutes (TON Connect max)
+            messages: [
+                {
+                    address: shopSettings.ton_wallet,
+                    amount: amount.toString()
+                    // Comment/payload removed - causes validation error
+                }
+            ]
+        };
+
+        console.log('Sending transaction:', transaction);
+
         // 4. Send transaction via TON Connect
         const txResult = await tonConnectUI.sendTransaction(transaction);
 
