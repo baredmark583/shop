@@ -33,7 +33,9 @@ const defaultIcons = {
     nova: 'https://api.iconify.design/mdi/truck-delivery.svg?color=%23007aff',
     ukr: 'https://api.iconify.design/mdi/mailbox.svg?color=%23007aff',
     meest: 'https://api.iconify.design/mdi/truck-fast-outline.svg?color=%23007aff',
-    cod: 'https://api.iconify.design/mdi/cash.svg?color=%23007aff'
+    cod: 'https://api.iconify.design/mdi/cash.svg?color=%23007aff',
+    cartAdd: 'https://api.iconify.design/mdi/cart-plus.svg?color=%23ffffff',
+    trash: 'https://api.iconify.design/mdi/trash-can-outline.svg?color=%23ff3b30'
 };
 
 // Простейшие соответствия индексов и городов (локально, без API)
@@ -209,7 +211,7 @@ async function loadProducts() {
               <div class="product-price">${product.price_uah} грн</div>
             </div>
             <button class="btn-add-cart" onclick="addToCart(${product.id}, event)">
-                <iconify-icon icon="mdi:cart-plus"></iconify-icon>
+                <img src="${getIconUrl('icon_cart', defaultIcons.cartAdd)}" alt="add to cart">
             </button>
           </div>
         </div>
@@ -433,8 +435,8 @@ function displayCart() {
 
     // Display items
     cartItems.innerHTML = cart.map(item => `
-    <div class="cart-item">
-      ${item.image_url ?
+      <div class="cart-item">
+        ${item.image_url ?
             `<img src="${escapeHtml(item.image_url)}" class="cart-item-image" alt="${escapeHtml(item.name)}">` :
             `<div class="cart-item-image" style="display: flex; align-items: center; justify-content: center;">
           <iconify-icon icon="mdi:package-variant" style="font-size: 48px; color: var(--text-secondary);"></iconify-icon>
@@ -448,7 +450,7 @@ function displayCart() {
           <span class="item-quantity">${item.quantity}</span>
           <button class="btn-quantity" onclick="updateQuantity(${item.product_id}, 1)">+</button>
           <button class="btn-remove" onclick="removeFromCart(${item.product_id})">
-            <iconify-icon icon="mdi:delete" style="font-size: 20px;"></iconify-icon>
+            <img src="${defaultIcons.trash}" alt="Удалить">
           </button>
         </div>
       </div>

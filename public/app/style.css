@@ -165,17 +165,22 @@ header h1 {
     background: var(--success);
     color: white;
     border: none;
-    padding: 8px 14px;
-    border-radius: 12px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
     font-size: 18px;
     cursor: pointer;
     transition: all 0.2s;
     box-shadow: var(--shadow);
-    font-size: 18px;
-    cursor: pointer;
-    padding: 8px;
-    color: var(--primary);
-    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.btn-add-cart img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
 }
 
 .cart-header h2 {
@@ -271,13 +276,22 @@ header h1 {
 }
 
 .btn-remove {
-    background: transparent;
-    border: none;
+    background: var(--background);
+    border: 1px solid var(--border);
     color: var(--danger);
     font-size: 20px;
     cursor: pointer;
     margin-left: auto;
-    padding: 4px 8px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-remove img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
 }
 
 /* Cart Footer */
@@ -380,29 +394,37 @@ header h1 {
 /* Banners Slider */
 .banners-slider {
     width: 100%;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+#bannersCarousel {
+    display: flex;
+    gap: 12px;
+    padding: 0 16px;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
-    margin-bottom: 16px;
 }
 
 .banners-slider::-webkit-scrollbar {
     display: none;
 }
 
-.banner-slide {
-    width: 100%;
-    height: 200px;
-    flex-shrink: 0;
-    scroll-snap-align: start;
-    border-radius: 12px;
+.banner-item {
+    flex: 0 0 90%;
+    max-width: 90%;
+    border-radius: 14px;
     overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    scroll-snap-align: center;
 }
 
-.banner-slide img {
+.banner-item img {
     width: 100%;
-    height: 100%;
+    height: 200px;
     object-fit: cover;
+    display: block;
 }
 
 /* Bottom Navigation */

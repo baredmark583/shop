@@ -431,7 +431,29 @@ async function loadOrders() {
             return;
         }
 
-        ordersList.innerHTML = orders.map(order => `
+        ordersList.innerHTML = orders.map(order => {
+            let shipping = '';
+            try {
+                const addr = order.shipping_address ? JSON.parse(order.shipping_address) : {};
+                shipping = `
+                <div style="margin-top:8px; font-size:14px; color: var(--text-secondary);">
+                  ${addr.method ? `Доставка: ${addr.method}` : ''}${addr.address ? `<br>Адрес: ${addr.address}` : ''}${addr.recipient ? `<br>Получатель: ${addr.recipient}` : ''}${addr.phone ? `<br>Тел: ${addr.phone}` : ''}
+                </div>`;
+            } catch (e) { shipping = ''; }
+
+            const itemsHtml = Array.isArray(order.items) && order.items.length
+                ? `<div style="margin-top:8px; font-size:14px; color: var(--text-secondary);">
+                    Товары: ${order.items.map(i => `${i.product_name} x${i.quantity}`).join(', ')}
+                   </div>`
+                : '';
+
+            const payInfo = order.payment_method === 'ton'
+                ? `<br>💎 ${order.total_ton} TON`
+                : order.payment_method === 'cod'
+                    ? '<br>💵 Оплата при получении'
+                    : `<br>⭐ ${order.total_stars} Stars`;
+
+            return `
       <div class="order-card">
         <div class="order-header">
           <div>
@@ -442,9 +464,11 @@ async function loadOrders() {
             <div style="color: var(--text-secondary); font-size: 14px;">
               @${order.telegram_username || 'unknown'}
             </div>
+            ${itemsHtml}
+            ${shipping}
           </div>
-          <div>
-            <div class="order-status ${order.status}">${order.status === 'paid' ? '✅ Оплачено' : '⏳ Ожидание'}</div>
+          <div style="text-align:right;">
+            <div class="order-status ${order.status}">${order.status === 'paid' ? '✅ Оплачено' : order.status === 'pending_cod' ? '🚚 Наложенный' : '⏳ Ожидание'}</div>
             <div style="margin-top: 8px; font-size: 14px; color: var(--text-secondary);">
               ${order.platform || 'unknown'}
             </div>
@@ -452,13 +476,11 @@ async function loadOrders() {
         </div>
         <div class="order-total">
           💰 ${order.total_uah} грн
-          ${order.payment_method === 'ton' ?
-                `<br>💎 ${order.total_ton} TON` :
-                `<br>⭐ ${order.total_stars} Stars`
-            }
+          ${payInfo}
         </div>
       </div>
-    `).join('');
+    `;
+        }).join('');
     } catch (error) {
         console.error('Error loading orders:', error);
     }
